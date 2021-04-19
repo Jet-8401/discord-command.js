@@ -1,38 +1,45 @@
 const Discord = require("discord.js");
 const utils = require("./utils");
 const fs = require("fs");
-
-/**
- * parse the message
- * @param {!Discord.Message} message
- * @param {!{prefix: string}} options
- * @returns {[string, [string]]}
- * you can get the return with let [command, args] = parse();
- */
-const parse = (message, options) => {
-	// check the parameter
-	if (!(Discord.Message instanceof message)) {
-		utils.warn("the message is not an instanceof Discord.Message.", true);
-		return [null, null];
-	}
-	// parse the message
-	const args = message.cleanContent.trim().slice(options.prefix.length).split(/ /gi);
-	const cmd = args.shift();
-
-	return [cmd, args];
-};
+const colors = require("colors");
 
 class Command {
+	/**
+	 * parse the message
+	 * @param {!Discord.Message} message
+	 * @param {!{prefix: string}} options
+	 * @returns {[string, [string]]}
+	 * you can get the return with let [command, args] = parse();
+	 */
+	static parse = (message, options) => {
+		// check the parameter
+		if (!(Discord.Message instanceof message)) {
+			utils.warn("the message is not an instanceof Discord.Message.", true);
+			return [null, null];
+		}
+		// parse the message
+		const args = message.cleanContent.trim().slice(options.prefix.length).split(/ /gi);
+		const cmd = args.shift();
+
+		return [cmd, args];
+	};
+
 	/**
 	 *
 	 * @param {!string|Array<string>} name
 	 * @param {?string} description
-	 * @param {?function} executable
+	 * @param {?(message: Discord.Message, args: string[], bot: Discord.Client)=>()} executable
 	 * @param {?Command|Array<Command>} childrens
 	 * @param {!Documentation} documentation
 	 */
 	constructor(name, description, executable, childrens, documentation) {
-		this.name = Array instanceof name ? name : [name];
+		this.name = name;
+		if (name) {
+			if (typeof name === "string" || name.constructor.name === "Array")
+				this.name = typeof name === "string" ? [name] : name;
+			else return utils.warn("name is not a typeof string or an Array", true);
+		} else return console.error("cannot read property of undefined");
+
 		this.description = description;
 		this.executable = executable;
 		this.childrens = childrens ? (Array instanceof childrens ? childrens : [childrens]) : [];
@@ -89,19 +96,33 @@ class Command {
 }
 
 class Commands extends Discord.Collection {
-	constructor() {
-		super();
-		this.config = {
-			cache: {
-				prefix: null,
-				commandsPath: null,
-			},
+	static config = {
+		cache: {
+			prefix: "",
 			/**
-			 * set the global config for the commands
-			 * @param {!{}} config
+			 * @type {Discord.Client}
 			 */
-			set: function (config) {},
-		};
+			bot: new Discord.Client(),
+			/**
+			 * **WARNING** - only relatives paths work
+			 */
+			commandsPath: "",
+		},
+	};
+
+	getConfig() {
+		return Commands.config.cache;
+	}
+
+	/**
+	 * set the global config for the commands
+	 */
+	setConfig(config = Commands.config.cache) {
+		for (const key of Object.keys(config)) {
+			if (Commands.config.cache[key] === undefined)
+				utils.warn(`config.${key} does not exist`, false);
+			else Commands.config.cache[key] = config[key];
+		}
 	}
 
 	/**
@@ -109,20 +130,27 @@ class Commands extends Discord.Collection {
 	 */
 	load() {
 		return new Promise((resolve, reject) => {
-			const path = this.config.cache.commandsPath;
+			const path = Commands.config.cache.commandsPath;
 			if (!path) reject(utils.warn("commands file path is incorrect.", true));
 
 			const files = fs
 				.readdirSync(path, { encoding: "utf-8" })
 				.filter((value) => value.endsWith(".js"));
 
-			console.log("Loading commands... \n");
+			console.log("Loading commands...");
+			let exeption = false;
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
-				utils.log.process(`Loading ${file}... (${i + 1}/${files.length})`);
-				this.set(file.name, file);
+				const path = Commands.config.cache.commandsPath;
+				const command = require(`.${path.endsWith("/") ? path : `${path}/`}${file}`);
+				if (command.constructor.name !== "Command") {
+					exeption = true;
+					utils.warn(`${file} don't export a ${colors.italic("Command")} class`);
+					continue;
+				}
+				this.set(file, command);
 			}
-			console.log("All commands loaded!");
+			console.log(`All ${exeption ? "valid" : ""} commmands loaded`);
 		});
 	}
 
@@ -137,7 +165,7 @@ class Commands extends Discord.Collection {
 	 * @param {!Discord.Message} message
 	 * @param {!Discord.Client} bot your bot client
 	 */
-	onMessage(message, bot) {
+	onMessage(message) {
 		return new Promise((resolve, reject) => {
 			//- check the bot
 			if (!(Discord.Client instanceof bot)) {
@@ -146,13 +174,13 @@ class Commands extends Discord.Collection {
 			}
 
 			//- check the prefix
-			const prefix = this.config.cache.prefix ? this.prefix : options.prefix;
+			const prefix = Commands.config.cache.prefix;
 			if (!prefix) {
 				utils.warn("any prefix are set for the commands!", true);
 				reject();
 			}
 
-			const [cmd, args] = parse(message);
+			const [cmd, args] = Command.parse(message);
 
 			// check if values are non-null
 			if (!cmd || !args) reject();

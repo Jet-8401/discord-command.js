@@ -7,11 +7,18 @@
 		"javascript",
 		"js",
 		"discord",
-		"bot"
+		"discord.js",
+		"bot",
+		"command",
+		"commands"
 	],
+	"scripts": {
+		"dev": "nodemon ./src/main.js"
+	},
 	"author": "jet-8401",
 	"license": "ISC",
 	"dependencies": {
+		"colors": "^1.4.0",
 		"discord.js": "^12.5.3"
 	}
 }

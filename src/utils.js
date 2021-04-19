@@ -5,8 +5,14 @@ const colors = require("colors");
  * @param {?boolean} abort tell if the action was aborted
  */
 const warn = (message, abort) => {
-	console.log(`discord-command.js -> ${colors.bgYellow("WARN")} ${message}`);
-	if (abort) console.log(colors.italic("- action aborted"));
+	console.error(
+		new TypeError(
+			`${colors.blue(require("../package.json").name)} -> ${colors.bgYellow.black(
+				"WARN"
+			)} ${message}`
+		)
+	);
+	if (abort) console.log(colors.blue(colors.italic("- action aborted")));
 	return message;
 };
 
