@@ -13,7 +13,7 @@ class Command {
 	 */
 	static parse = (message, options) => {
 		// check the parameter
-		if (!(Discord.Message instanceof message)) {
+		if (!(message instanceof Discord.Message)) {
 			utils.warn("the message is not an instanceof Discord.Message.", true);
 			return [null, null];
 		}
@@ -42,7 +42,7 @@ class Command {
 
 		this.description = description;
 		this.executable = executable;
-		this.childrens = childrens ? (Array instanceof childrens ? childrens : [childrens]) : [];
+		this.childrens = childrens ? (childrens instanceof Array ? childrens : [childrens]) : [];
 		this.documentation = documentation;
 
 		this.genealogicalPos = 0; // default
@@ -81,23 +81,23 @@ class Command {
 	 * @param {Discord.Client} bot
 	 */
 	execute(message, args, bot) {
-		if (args[args.length - 1] === cmdInfo) return this.info(message, args, bot);
+		if (args[args.length - 1] === "--info") return this.info(message, args, bot);
 
 		if (this.childrens.length > 0) {
 			for (const child of this.childrens) {
 				if (child.match(args[this.genealogicalPos]))
 					return child.execute(message, args, bot);
 			}
-			return this.executable(message, args, bot);
 		}
 
-		this.executable(message, args, bot);
+		if (this.executable instanceof Function) this.executable(message, args, bot);
+		else message.channel.send("Command need parameter");
 	}
 }
 
-class Commands extends Discord.Collection {
-	static config = {
-		cache: {
+class Commands {
+	static cache = {
+		config: {
 			prefix: "",
 			/**
 			 * @type {Discord.Client}
@@ -108,20 +108,21 @@ class Commands extends Discord.Collection {
 			 */
 			commandsPath: "",
 		},
+		commands: new Discord.Collection(),
 	};
 
 	getConfig() {
-		return Commands.config.cache;
+		return Commands.cache.config;
 	}
 
 	/**
 	 * set the global config for the commands
 	 */
-	setConfig(config = Commands.config.cache) {
+	setConfig(config = Commands.cache.config) {
 		for (const key of Object.keys(config)) {
-			if (Commands.config.cache[key] === undefined)
+			if (Commands.cache.config[key] === undefined)
 				utils.warn(`config.${key} does not exist`, false);
-			else Commands.config.cache[key] = config[key];
+			else Commands.cache.config[key] = config[key];
 		}
 	}
 
@@ -130,7 +131,7 @@ class Commands extends Discord.Collection {
 	 */
 	load() {
 		return new Promise((resolve, reject) => {
-			const path = Commands.config.cache.commandsPath;
+			const path = Commands.cache.config.commandsPath;
 			if (!path) reject(utils.warn("commands file path is incorrect.", true));
 
 			const files = fs
@@ -141,14 +142,14 @@ class Commands extends Discord.Collection {
 			let exeption = false;
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
-				const path = Commands.config.cache.commandsPath;
+				const path = Commands.cache.config.commandsPath;
 				const command = require(`.${path.endsWith("/") ? path : `${path}/`}${file}`);
 				if (command.constructor.name !== "Command") {
 					exeption = true;
 					utils.warn(`${file} don't export a ${colors.italic("Command")} class`);
 					continue;
 				}
-				this.set(file, command);
+				Commands.cache.commands.set(command.name, command);
 			}
 			console.log(`All ${exeption ? "valid" : ""} commmands loaded`);
 		});
@@ -157,8 +158,16 @@ class Commands extends Discord.Collection {
 	/**
 	 * check if a certain command exist
 	 * @param {!string} command
+	 * @returns {Command|false}
 	 */
-	exist(command) {}
+	exist(command) {
+		for (const keys of Commands.cache.commands.keys()) {
+			for (const key of keys) {
+				if (command === key) return Commands.cache.commands.get(keys);
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * execute a command from a discord message
@@ -166,33 +175,28 @@ class Commands extends Discord.Collection {
 	 * @param {!Discord.Client} bot your bot client
 	 */
 	onMessage(message) {
-		return new Promise((resolve, reject) => {
-			//- check the bot
-			if (!(Discord.Client instanceof bot)) {
-				utils.warn("bot is not an instance of bot!", true);
-				reject();
-			}
+		if (message.author.bot || !message.content.startsWith(Commands.cache.config.prefix)) return;
 
-			//- check the prefix
-			const prefix = Commands.config.cache.prefix;
-			if (!prefix) {
-				utils.warn("any prefix are set for the commands!", true);
-				reject();
-			}
+		//- check the prefix
+		const prefix = Commands.cache.config.prefix;
+		if (!prefix) {
+			utils.warn("any prefix are set for the commands!", true);
+			return;
+		}
 
-			const [cmd, args] = Command.parse(message);
+		const [cmd, args] = Command.parse(message, { prefix: Commands.cache.config.prefix });
 
-			// check if values are non-null
-			if (!cmd || !args) reject();
-			else {
-				if (this.exist(cmd)) resolve(this.execute(cmd));
-				else resolve(message);
-			}
-		});
+		// check if values are non-null
+		if (!cmd || !args) return;
+		else {
+			const command = this.exist(cmd);
+			if (command) command.execute(message, args, Commands.cache.config.bot);
+			else return message;
+		}
 	}
 }
 
-module["exports"] = {
+module["exports"] = CommandManager = {
 	Command,
 	Commands: new Commands(),
 };
