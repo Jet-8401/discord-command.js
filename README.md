@@ -46,19 +46,19 @@ so the `commandsPath` gonna be `./command` in _main.js_
 > use the command manager
 
 ```javascript
-bot.on("message", (message) => Commands.onMessage(message, bot));
+bot.on("message", message => Commands.onMessage(message, bot));
 ```
 
 > or you just can use the inside **parser**
 
 ```javascript
-bot.("message", message => {
-    const [command, arguments] = Command.parse(message);
+bot.on("message", message => {
+	const [command, arguments] = Command.parse(message);
 
-    if(command === "!ping") {
-        message.reply("pong");
-    }
-})
+	if (command === "!ping") {
+		message.reply("pong");
+	}
+});
 ```
 
 ## Creating command
@@ -81,7 +81,7 @@ module["exports"] = new Command(
 		const t0 = performance.now();
 		const msg = await message.channel.send(`Pong !`);
 		msg.edit(`Pong !*(${Math.floor(performance.now() - t0)}ms)*`);
-	}
+	},
 );
 ```
 
@@ -93,7 +93,7 @@ const { Command, Commands } = require("discord-command.js");
 Commands.add(
 	new Command("ping", null, (message, args, bot) => {
 		message.reply("Pong!");
-	})
+	}),
 );
 ```
 

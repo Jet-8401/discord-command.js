@@ -85,15 +85,13 @@ class Command {
 		const embed = new Discord.MessageEmbed()
 			.setColor(Commands.cache.config.color || "#1f6fea")
 			.setTitle(`Info of ${this.name[0]}`)
-			.setDescription(
-				utils.capitalize(this.description) || "This command dont have any description."
-			);
+			.setDescription(utils.capitalize(this.description) || "This command dont have any description.");
 
 		if (this.name.length > 1)
 			embed.addField(
 				"Other appellations",
-				this.name.filter((value) => value !== command),
-				true
+				this.name.filter(value => value !== command),
+				true,
 			);
 		if (this.childrens.length > 1)
 			embed.addField(
@@ -103,7 +101,7 @@ class Command {
 					for (const child of this.childrens) total.push(child.name[0]);
 					return total;
 				})(),
-				true
+				true,
 			);
 
 		message.channel.send(embed);
@@ -119,14 +117,12 @@ class Command {
 	execute(message, args, bot, command) {
 		if (this.childrens.length > 0) {
 			for (const child of this.childrens) {
-				if (child.match(args[this.genealogicalPos]))
-					return child.execute(message, args, bot);
+				if (child.match(args[this.genealogicalPos])) return child.execute(message, args, bot);
 			}
 		}
 
 		if (Commands.cache.config.extraHelps) {
-			if (args[args.length - 1] === Commands.cache.config.info)
-				return this.info(message, command);
+			if (args[args.length - 1] === Commands.cache.config.info) return this.info(message, command);
 		}
 
 		if (this.executable instanceof Function) this.executable(message, args, bot);
@@ -158,9 +154,8 @@ class Commands {
 	 */
 	setConfig(config = Commands.cache.config) {
 		for (const key of Object.keys(config)) {
-			if (Commands.cache.config[key] === undefined)
-				utils.warn(`config.${key} does not exist`, false, true);
-			else Commands.cache.config[key] = config[key].trim();
+			if (Commands.cache.config[key] === undefined) utils.warn(`config.${key} does not exist`, false, true);
+			else Commands.cache.config[key] = typeof config[key] === "string" ? config[key].trim() : config[key];
 		}
 	}
 
@@ -171,20 +166,16 @@ class Commands {
 		return new Promise((resolve, reject) => {
 			let path = Commands.cache.config.commandsPath;
 			if (!path || path === "") {
-				utils.warn(
-					`comand file path is incorect in config ${colors.italic(`(${path})`)}`,
-					true
-				);
+				utils.warn(`comand file path is incorect in config ${colors.italic(`(${path})`)}`, true);
 				reject();
 			}
 
 			// parse the path
-			for (const regex of ["./", "/"])
-				if (path.startsWith(regex)) path = path.slice(regex.length);
+			for (const regex of ["./", "/"]) if (path.startsWith(regex)) path = path.slice(regex.length);
 
 			if (path.endsWith("/")) path = path.slice(0, path.length - 1);
 
-			const files = fs.readdirSync(`./${path}`).filter((value) => value.endsWith(".js"));
+			const files = fs.readdirSync(`./${path}`).filter(value => value.endsWith(".js"));
 			for (const file of files) {
 				const command = require(`../../../${path}/${file}`);
 
@@ -224,10 +215,7 @@ class Commands {
 
 		// check if commands are loaded
 		if (cache.commands.array().length === 0) {
-			utils.warn(
-				"no commands has been loaded, maybe you forgot to load them or you dont added some :/",
-				true
-			);
+			utils.warn("no commands has been loaded, maybe you forgot to load them or you dont added some :/", true);
 			return;
 		}
 

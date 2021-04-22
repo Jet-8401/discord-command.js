@@ -1,6 +1,6 @@
 {
 	"name": "discord-command.js",
-	"version": "2.0.1",
+	"version": "2.0.7",
 	"description": "An npm package that help you with command for your discord bot.",
 	"main": "src/command.js",
 	"keywords": [
@@ -12,6 +12,10 @@
 		"command",
 		"commands"
 	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Jet-8401/Discord-command.js"
+	},
 	"author": "jet-8401",
 	"license": "MIT",
 	"dependencies": {
