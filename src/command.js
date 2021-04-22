@@ -184,7 +184,7 @@ class Commands {
 
 			if (path.endsWith("/")) path = path.slice(0, path.length - 1);
 
-			const files = fs.readdirSync(`../../${path}`).filter((value) => value.endsWith(".js"));
+			const files = fs.readdirSync(`./${path}`).filter((value) => value.endsWith(".js"));
 			for (const file of files) {
 				const command = require(`../../../${path}/${file}`);
 
