@@ -14,7 +14,7 @@ class Command {
 	static parse = (message, options) => {
 		// check the parameter
 		if (!(message instanceof Discord.Message)) {
-			utils.warn("the message is not an instanceof Discord.Message.", true);
+			utils.warn("the message is not an instanceof Discord.Message.", true, true);
 			return [null, null];
 		}
 		// parse the message
@@ -30,20 +30,21 @@ class Command {
 	 * @param {?string} description
 	 * @param {?(message: Discord.Message, args: string[], bot: Discord.Client)=>()} executable
 	 * @param {?Command|Array<Command>} childrens
-	 * @param {!Documentation} documentation
+	 * @param documentation
 	 */
-	constructor(name, description, executable, childrens, documentation) {
+	constructor(name, description, executable, childrens) {
 		this.name = name;
 		if (name) {
 			if (typeof name === "string" || name.constructor.name === "Array")
 				this.name = typeof name === "string" ? [name] : name;
-			else return utils.warn("name is not a typeof string or an Array", true);
+			else return utils.warn("name is not a typeof string or an Array", true, true);
 		} else return console.error("cannot read property of undefined");
+
+		for (let i = 0; i < this.name.length; i++) this.name[i].trim();
 
 		this.description = description;
 		this.executable = executable;
 		this.childrens = childrens ? (childrens instanceof Array ? childrens : [childrens]) : [];
-		this.documentation = documentation;
 
 		this.genealogicalPos = 0; // default
 
@@ -51,7 +52,6 @@ class Command {
 	}
 
 	/**
-	 * a function that set the genalogical positions of all childs
 	 * @param {!number} next
 	 */
 	set(next) {
@@ -75,19 +75,59 @@ class Command {
 	}
 
 	/**
+	 * return the info of a command in a discord embed
+	 * @param {!Discord.Message} message
+	 * @param {string} command
+	 */
+	info(message, command) {
+		const embed = new Discord.MessageEmbed()
+			.setColor(Commands.cache.config.color || "#1f6fea")
+			.setTitle(`Info of ${this.name[0]}`)
+			.setDescription(utils.capitalize(this.description) || "This command dont have any description.")
+			.setFooter(`Required by ${message.author.tag}`, message.author.displayAvatarURL())
+			.setTimestamp();
+
+		if (this.name.length > 1)
+			embed.addField(
+				"Other appellations",
+				this.name.filter(value => value !== command),
+				true,
+			);
+		if (this.childrens.length > 1)
+			embed.addField(
+				"Options",
+				(() => {
+					const total = new Array(0);
+					for (const child of this.childrens) total.push(child.name[0]);
+					return total;
+				})(),
+				true,
+			);
+
+		message.channel.send(embed);
+	}
+
+	doc(message) {
+		const embed = new Discord.MessageEmbed();
+	}
+
+	/**
 	 * execute the command
 	 * @param {Discord.Message} message
 	 * @param {Array<string>} args
 	 * @param {Discord.Client} bot
+	 * @param {string} command
 	 */
-	execute(message, args, bot) {
-		if (args[args.length - 1] === "--info") return this.info(message, args, bot);
-
+	execute(message, args, bot, command) {
 		if (this.childrens.length > 0) {
 			for (const child of this.childrens) {
-				if (child.match(args[this.genealogicalPos]))
-					return child.execute(message, args, bot);
+				if (child.match(args[this.genealogicalPos])) return child.execute(message, args, bot);
 			}
+		}
+
+		if (Commands.cache.config.extraHelps) {
+			if (args[args.length - 1] === Commands.cache.config.info) return this.info(message, command);
+			if (args[args.length - 1] === Commands.cache.config.documentation) return this.doc(message);
 		}
 
 		if (this.executable instanceof Function) this.executable(message, args, bot);
@@ -100,19 +140,18 @@ class Commands {
 		config: {
 			prefix: "",
 			/**
-			 * @type {Discord.Client}
-			 */
-			bot: new Discord.Client(),
-			/**
 			 * **WARNING** - only relatives paths work
 			 */
 			commandsPath: "",
+			extraHelps: true,
+			info: "--info",
+			documentation: "--help",
 		},
 		commands: new Discord.Collection(),
 	};
 
 	getConfig() {
-		return Commands.cache.config;
+		return Object.assign({}, Commands.cache.config);
 	}
 
 	/**
@@ -120,9 +159,8 @@ class Commands {
 	 */
 	setConfig(config = Commands.cache.config) {
 		for (const key of Object.keys(config)) {
-			if (Commands.cache.config[key] === undefined)
-				utils.warn(`config.${key} does not exist`, false);
-			else Commands.cache.config[key] = config[key];
+			if (Commands.cache.config[key] === undefined) utils.warn(`config.${key} does not exist`, false, true);
+			else Commands.cache.config[key] = config[key].trim();
 		}
 	}
 
@@ -131,27 +169,29 @@ class Commands {
 	 */
 	load() {
 		return new Promise((resolve, reject) => {
-			const path = Commands.cache.config.commandsPath;
-			if (!path) reject(utils.warn("commands file path is incorrect.", true));
+			let path = Commands.cache.config.commandsPath;
+			if (!path || path === "") {
+				utils.warn(`comand file path is incorect in config ${colors.italic(`(${path})`)}`, true);
+				reject();
+			}
 
-			const files = fs
-				.readdirSync(path, { encoding: "utf-8" })
-				.filter((value) => value.endsWith(".js"));
+			// parse the path
+			for (const regex of ["./", "/"]) if (path.startsWith(regex)) path = path.slice(regex.length);
 
-			console.log("Loading commands...");
-			let exeption = false;
-			for (let i = 0; i < files.length; i++) {
-				const file = files[i];
-				const path = Commands.cache.config.commandsPath;
-				const command = require(`.${path.endsWith("/") ? path : `${path}/`}${file}`);
-				if (command.constructor.name !== "Command") {
-					exeption = true;
-					utils.warn(`${file} don't export a ${colors.italic("Command")} class`);
-					continue;
+			if (path.endsWith("/")) path = path.slice(0, path.length - 1);
+
+			const files = fs.readdirSync(`../../${path}`).filter(value => value.endsWith(".js"));
+			for (const file of files) {
+				const command = require(`../../../${path}/${file}`);
+
+				if (!(command instanceof Command)) {
+					utils.warn(`${file} is not a command`);
+					reject();
 				}
+
 				Commands.cache.commands.set(command.name, command);
 			}
-			console.log(`All ${exeption ? "valid" : ""} commmands loaded`);
+			resolve();
 		});
 	}
 
@@ -172,27 +212,43 @@ class Commands {
 	/**
 	 * execute a command from a discord message
 	 * @param {!Discord.Message} message
-	 * @param {!Discord.Client} bot your bot client
 	 */
-	onMessage(message) {
-		if (message.author.bot || !message.content.startsWith(Commands.cache.config.prefix)) return;
+	onMessage(message, bot) {
+		const cache = Commands.cache;
 
-		//- check the prefix
-		const prefix = Commands.cache.config.prefix;
-		if (!prefix) {
-			utils.warn("any prefix are set for the commands!", true);
+		if (message.author.bot || !message.content.startsWith(cache.config.prefix)) return;
+
+		// check if commands are loaded
+		if (cache.commands.array().length === 0) {
+			utils.warn("no commands has been loaded, maybe you forgot to load them or you dont added some :/", true);
 			return;
 		}
 
-		const [cmd, args] = Command.parse(message, { prefix: Commands.cache.config.prefix });
+		//- check the prefix
+		const prefix = cache.config.prefix;
+		if (!prefix || prefix === "") {
+			utils.warn("any prefix are set for the commands in the config!", true);
+			return;
+		}
+
+		const [cmd, args] = Command.parse(message, { prefix: cache.config.prefix });
 
 		// check if values are non-null
 		if (!cmd || !args) return;
 		else {
 			const command = this.exist(cmd);
-			if (command) command.execute(message, args, Commands.cache.config.bot);
+			if (command) command.execute(message, args, bot, cmd);
 			else return message;
 		}
+	}
+
+	add(command) {
+		if (!command instanceof Command) {
+			utils.warn("command is not an instance of Command", true, true);
+			return;
+		}
+
+		Commands.cache.commands.set(command.name, command);
 	}
 }
 
