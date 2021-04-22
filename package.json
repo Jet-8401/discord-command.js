@@ -12,9 +12,6 @@
 		"command",
 		"commands"
 	],
-	"scripts": {
-		"dev": "nodemon ./src/main.js"
-	},
 	"author": "jet-8401",
 	"license": "ISC",
 	"dependencies": {
