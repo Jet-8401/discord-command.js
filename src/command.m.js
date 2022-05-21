@@ -4,7 +4,7 @@
  * Module requirements.
  */
 const Discord = require("discord.js");
-const { internalError, parse } = require("../utils/utils.m.js");
+const { internalError, parse } = require("../requirements/utils.m.js");
 
 /**
  * Model of commandFunction.

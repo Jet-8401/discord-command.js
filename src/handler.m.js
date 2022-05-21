@@ -5,7 +5,7 @@
  */
 const fs = require("fs");
 const Discord = require("discord.js");
-const { internalError, warn, configuration, parse } = require("../utils/utils.m.js");
+const { internalError, warn, configuration, parse } = require("../requirements/utils.m.js");
 
 /**
  * Tell if all commands is loaded.
@@ -17,6 +17,8 @@ const handler = {};
 handler['command'] = require("./command.m.js");
 
 handler['configuration'] = configuration;
+
+handler['devs'] = require("../requirements/devs.m.js");
 
 handler['parse'] = parse;
 
@@ -93,6 +95,9 @@ handler['resolve'] = function resolve(resolvable) {
  * @param {Discord.Interaction} interaction
  */
 handler['executeInteraction'] = function executeInteraction(interaction) {
+    // check if devMod is enable
+    if(!this.devs.check(interaction.member)) return;
+
     if(!(interaction instanceof Discord.Interaction))
         return internalError("interaction parameter must be an instance of Discord.Interaction");
 
@@ -125,6 +130,9 @@ handler['executeInteraction'] = function executeInteraction(interaction) {
  * @param {?string} commandName
  */
 handler['executeMessage'] = function executeMessage(message, commandName) {
+    // check if devMod is enable
+    if(!this.devs.check(message.member)) return;
+
     if(!message instanceof Discord.Message)
         return internalError("message parameter must be an instance of Discord.Message");
 
@@ -225,6 +233,15 @@ handler['hasCommand'] = function hasCommand(command, options = {strict: false, s
     }
 
     return internalError("command must be a typeof String or Array");
+}
+
+/**
+ * Unlaod a command that was previously register.
+ * 
+ * @param {string|handler.command} command 
+ */
+handler['unload'] = function unLoadCommand(command) {
+    this.commands.includes(this.hasCommand(command instanceof String ? command : command.name));
 }
 
 function isDirectory(path) {

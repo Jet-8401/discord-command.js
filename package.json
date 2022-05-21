@@ -2,7 +2,7 @@
 	"name": "discord-command.js",
 	"version": "2.0.7",
 	"description": "An npm package that help you with command for your discord bot.",
-	"main": "./index.m.js",
+	"main": "",
 	"keywords": [
 		"discord",
 		"command",

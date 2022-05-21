@@ -1,1 +1,4 @@
-{"prefix":"-", "block_bot_messages": true}
+{
+    "prefix":"-",
+    "block_bot_messages": true
+}
