@@ -5,7 +5,7 @@
  */
 const fs = require("fs");
 const Discord = require("discord.js");
-const { internalError, warn, configuration, parse } = require("../requirements/utils.m.js");
+const { internalError, warn, configuration, parse, internalConsole } = require("../requirements/utils.m.js");
 
 /**
  * Tell if all commands is loaded.
@@ -27,6 +27,8 @@ handler['voice'] = require("./voice-handler.m.js");
 
 /**
  * Dictionary of all commands.
+ * 
+ * @type {Array<handler.command>}
  */
 handler['commands'] = [];
 
@@ -65,7 +67,7 @@ handler['register'] = function commandRegister(resolvable) {
 
     } else if(resolvable instanceof this.command) {
 
-        console.log(resolvable.entries[0] + " loaded");
+        internalConsole(resolvable.entries[0] + " loaded");
         this.commands.push(resolvable);
         return this;
 
@@ -241,7 +243,17 @@ handler['hasCommand'] = function hasCommand(command, options = {strict: false, s
  * @param {string|handler.command} command 
  */
 handler['unload'] = function unLoadCommand(command) {
-    this.commands.includes(this.hasCommand(command instanceof String ? command : command.name));
+    for(let i = 0; i <  this.commands.length; i++) {
+        for(const entry of this.commands[i]['entries']) {
+            if(entry === command) {
+                internalConsole(`${command} is unload!`);
+                this.commands.splice(i, 1);
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 function isDirectory(path) {
@@ -265,7 +277,7 @@ function loadFile(path) {
         return internalError(`loaded file failed (${path}) the export value must be an instance of handler.command or command`, "skiped");
     
     this.commands.push(command);
-    console.log(`${command.entries[0]} loaded !`);
+    internalConsole(`${command.entries[0]} loaded !`);
 
     return this;
 }

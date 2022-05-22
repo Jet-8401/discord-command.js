@@ -5,6 +5,7 @@
  */
 const colors = require("colors");
 const Discord = require("discord.js");
+const fs = require("fs");
 
 const __package = require("../package.json")
 const full_package_name = __package.name + "@" + __package.version;
@@ -18,11 +19,13 @@ const cache = require("../src/configuration.json");
 // set the configuration
 Object.defineProperty(Object.getPrototypeOf(cache.prefix), "isValid", {
     get: function isValid() {
-        if(this.prefix instanceof String)
-            if(this.prefix.length > 0)
-                return true;
+        if(typeof cache.prefix === "string") {
+            if(cache.prefix.length > 0) {
+                return cache.prefix;
+            }
+        }
     
-        return '-';
+        return false;
     }
 });
 
@@ -95,6 +98,10 @@ function internalError(message, actionAfter = "aborted") {
     return error;
 }
 
+function internalConsole(message) {
+    console.log(`${colors.blue(`(${full_package_name})`)} ${message}`);
+}
+
 /**
  * Display a warning in the console.
  * 
@@ -103,7 +110,7 @@ function internalError(message, actionAfter = "aborted") {
  */
  function warn(message) {
     const ERROR = new Error(message);
-    const WARNING = `Warn: ${colors.bgMagenta(full_package_name)} --> ${ERROR.stack.slice(ERROR.stack.indexOf(ERROR.message))}`;
+    const WARNING = `Warn: ${colors.red(full_package_name)} --> ${ERROR.stack.slice(ERROR.stack.indexOf(ERROR.message))}`;
     console.error(WARNING);
     return WARNING;
 }
@@ -157,6 +164,7 @@ module["exports"] = {
     configuration,
     parse,
 	internalError,
+    internalConsole,
     warn,
 	capitalize
 };
