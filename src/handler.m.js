@@ -5,7 +5,14 @@
  */
 const fs = require("fs");
 const Discord = require("discord.js");
-const { internalError, warn, configuration, parse, internalConsole } = require("../requirements/utils.m.js");
+const {
+    configuration,
+    parse,
+    internalError,
+    internalConsole,
+    internalWarn,
+    isCommandObj
+} = require("../requirements/utils.m.js");
 
 /**
  * Tell if all commands is loaded.
@@ -15,11 +22,8 @@ let commandLOADED = false;
 const handler = {};
 
 handler['command'] = require("./command.m.js");
-
 handler['configuration'] = configuration;
-
-handler['devs'] = require("../requirements/devs.m.js");
-
+handler['autorised'] = require("../requirements/autorised.m.js");
 handler['parse'] = parse;
 
 // Extra handler for voice connections
@@ -32,44 +36,53 @@ handler['voice'] = require("./voice-handler.m.js");
  */
 handler['commands'] = [];
 
+// set the cache
+Object.defineProperty(handler, "cache", {value: {}});
+
 // define a getter to know if the commands was loaded
 Object.defineProperty(handler.commands, "loaded", {get: function() {
     return commandLOADED;
 }});
 
-// set the cache
-Object.defineProperty(handler, "cache", {value: {}});
+/**
+ * @param {string} name name of the file or the directory
+ * @param {string} path path of the current element
+ * @param {boolean} isDirectory 
+ */
+function filterRegister(name, path, isDirectory) {};
 
 /**
  * Add a command to the handler.
  * 
- * @param {string|command} resolvable a folder path to a directory of commands using `file://` protocol or a command
+ * @param {string|handler.command} resolvable a folder path to a directory of commands using `file://` protocol or a command
+ * @param {Object} options
+ * @param {?boolean} options.auto_categorise
+ * @param {?boolean} options.recursive
+ * @param {?filterRegister} options.filter
  * @returns 
  */
-handler['register'] = function commandRegister(resolvable) {
+handler['register'] = function commandRegister(resolvable, options) {
     if(!resolvable)
         return internalError("resolvable argument must be provided");
 
     if(typeof resolvable === "string") {
 
+        // if the path is relative set it from the root
         const fullPATH = resolvable.startsWith(__dirname) ? resolvable : fs.realpathSync(__dirname + "../../../" + resolvable);
 
         if(!fs.existsSync(fullPATH))
             return internalError(`the given path don't exist ${fullPATH}`);
     
-        // set the loaded variable to true
         commandLOADED = true;
     
         if(isDirectory(fullPATH))
-            return loadDirectory.apply(this, [fullPATH]);
+            return loadDirectory.apply(this, [fullPATH, options]);
     
         return loadFile.apply(this, [fullPATH]);
 
     } else if(resolvable instanceof this.command) {
 
-        internalConsole(resolvable.entries[0] + " loaded");
-        this.commands.push(resolvable);
-        return this;
+        addCommand.apply(this, [resolvable]);
 
     }
 }
@@ -98,7 +111,7 @@ handler['resolve'] = function resolve(resolvable) {
  */
 handler['executeInteraction'] = function executeInteraction(interaction) {
     // check if devMod is enable
-    if(!this.devs.check(interaction.member)) return;
+    if(!this.autorised.check(interaction.member)) return;
 
     if(!(interaction instanceof Discord.Interaction))
         return internalError("interaction parameter must be an instance of Discord.Interaction");
@@ -133,7 +146,7 @@ handler['executeInteraction'] = function executeInteraction(interaction) {
  */
 handler['executeMessage'] = function executeMessage(message, commandName) {
     // check if devMod is enable
-    if(!this.devs.check(message.member)) return;
+    if(!this.autorised.check(message.member)) return;
 
     if(!message instanceof Discord.Message)
         return internalError("message parameter must be an instance of Discord.Message");
@@ -153,7 +166,9 @@ handler['executeMessage'] = function executeMessage(message, commandName) {
 
     // check if the command requested exist
     const command = this.hasCommand(cmd_name, {filter: (value) => !value.interactionsOnly});
-    if(command) return command.execute(message);
+    if(command) {
+        return command.execute(message);
+    }
 
     return this;
 }
@@ -179,8 +194,10 @@ handler['executeMessage'] = function executeMessage(message, commandName) {
  * @returns {false|handler.command|Array<handler.command>}
  */
 handler['hasCommand'] = function hasCommand(command, options = {strict: false, strictEntries: false, filter: null}) {
-    if(!this.commands.loaded)
-        return !Boolean(warn("no commands has been loaded (empty handler)")); // return false
+    if(!this.commands.loaded) {
+        internalError("no commands has been loaded (empty handler)", "continue");
+        return false;
+    }
 
     const {strict, strictEntries, filter} = options;
 
@@ -260,24 +277,95 @@ function isDirectory(path) {
     return fs.statSync(path).isDirectory();
 }
 
-function loadDirectory(path) {
-    for(const file of fs.readdirSync(path))
-        loadFile.apply(this, [`${path}\\${file}`]);
+function loadDirectory(path, options) {
+    const directories = {};
+
+    // loop through the given directory
+    // (load the files first)
+    for(const currentElement of fs.readdirSync(path)) {
+        const resolvedPath = fs.realpathSync(path + "\\" + currentElement);
+        const isResolvedPathIsDirectory = isDirectory(resolvedPath);
+
+        // check for files or folder to exclude
+        if(options) {
+            if(options.filter) if(options.filter(
+                /* name */        currentElement,
+                /* path */        resolvedPath,
+                /* isDirectory */ isResolvedPathIsDirectory
+            )) continue;
+        }
+
+        // if its a directory skip him for now
+        if(isResolvedPathIsDirectory) {
+            directories[resolvedPath] = currentElement;
+            continue;
+        }
+
+        const file = loadFile.apply(this, [resolvedPath]);
+
+        // if the file don't return a command skip him
+        if(!file) continue;
+
+        // if the auto_categories options is enabled
+        // set the category to the command
+        if(options) {
+            if(options.auto_categorise && options.categories) {
+                file.setCategory(options.categories, options);
+            }
+        }
+
+        addCommand.apply(this, [file]);
+    }
+
+    // load the directories
+    for(const dir in directories) {
+        if(options) {
+            // if categories don't exist just create an empty array
+            if(!options.categories) options.categories = [];
+
+            // If the recursive options is enable
+            // just add a categories to the currents in the array
+            // else just set a new category
+            options.recursive ?
+                options.categories.push(directories[dir]) : options.categories[0] = directories[dir];
+        }
+        
+        loadDirectory.apply(this, [dir, options]);
+
+        // reset the categories of this directory
+        // for the next iteration
+        options.categories = [];
+    }
 
     return this;
 }
 
 function loadFile(path) {
     if(isDirectory(path))
-        return this;
-
-    const command = require(path);
-
-    if(!command || !(command instanceof this.command))
-        return internalError(`loaded file failed (${path}) the export value must be an instance of handler.command or command`, "skiped");
+        return false;
     
+    const requiredFile = require(path);
+
+    // if the file export a command class
+    if(requiredFile instanceof this.command) {
+        return requiredFile;
+    }
+
+    // if the file export an object that fit the command class
+    if(isCommandObj(requiredFile)) {
+        return new this.command(
+            requiredFile['entries'], requiredFile['executable'], requiredFile['options']
+        );
+    }
+
+    // if the module export something else just throw a warn
+    internalWarn(`${path} don't export a valid command`);
+    return false;
+}
+
+function addCommand(command) {
+    internalConsole(command.entries[0] + " loaded");
     this.commands.push(command);
-    internalConsole(`${command.entries[0]} loaded !`);
 
     return this;
 }

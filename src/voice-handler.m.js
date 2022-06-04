@@ -1,89 +1,117 @@
+'use strict';
+
+const Discord = require("discord.js");
+const Voice = require("@discordjs/voice");
+const { internalError } = require("../requirements/utils.m");
+
+function Queu({maxSize}) {
+    this.content = [];
+    this.maxSize = maxSize;
+    this.currentlyPlaying = false;
+    this.lastSong = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    this.loop = false;
+
+    this.connection = false;
+    this.audioPlayer = Voice.createAudioPlayer();
+
+    // set the basic handling errors
+    this.audioPlayer.on("error", internalError);
+
+    // set an event when the audioPlayer has finished to play
+    this.audioPlayer.on("stateChange", (oldState, newState) => {
+        if(newState.status === "playing") return this.currentlyPlaying = true;
+        this.currentlyPlaying = false;
+    });
+}
+
 /**
- * Modules requirements.
+ * Add something to the queu.
+ * 
+ * `force` param is to enabled if you want to 'break' the
+ * maximum size of the queu, that means that if the length of the 
+ * curernt queu is too long to add something eles the first element
+ * on the queu gonna be deleted and the item gonna be pushed into the end.
+ * By default the maximum size is set to 100 and can be change into `voiceHandler['maxSize']`
+ * 
+ * @param {*} item item to add to the queu
+ * @param {boolean} force
+ * @returns {boolean}
  */
-
-const voiceHandler = {};
-
-voiceHandler['lastSong'] = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-
-voiceHandler['queu'] = {
-    maximum: 100,
-
-    // /**
-    //  * Historical is a variable for setting a permanent historical by saving the element
-    //  * that goes out of the queu by saving them into a file, by exemple that can be usefull if you
-    //  * queu works with link/string that can be saved to played them randomly like a playlist.
-    //  * 
-    //  * Options:
-    //  *  - activate: {Boolean} if the historical is activate
-    //  *  - path: {String}
-    //  */
-    // historical: {
-    //     activate: false,
-    //     path: null,
-    //     autoSave: false,
-    //     cooldown: 10000
-    // },
-
-    /**
-     * Attach the object/value of you choice to a `guildId`, for example that can be
-     * a link, a Buffer, an Object, but for a music queu with a maximum ammout (`100 by default`) 
-     * that you can set to wathever you want, if you don't want a maximum value fot the queu
-     * you can just use the `Infinity` variable.
-     * 
-     * If the function false is that the queu is at it's maximum size expected.
-     * Else return the new length of the array.
-     * 
-     * @param {string} guildId 
-     * @param {*} value the value to attach to the `guildId` (that can be a link, a Buffer, etc...)
-     * @param {Object} options
-     * @param {boolean} options.force with the `force` options you can avoid the maximum limitations,
-     * if it set to true, that gonna forced to add the element in the array but it still remove the last element in it,
-     * (it can be forced to add new elements but it can't reach more than his maximum limitions)
-     * @returns {Number|false}
-     */
-    add: function addQueu(guildId, value, options) {
-        /**@type {Array} */
-        let queu = guildCache.queues.get(guildId);
-
-        if(options.force) {
-            queu.unshift(value);
-            if(queu.length > this.maximum) 
-                queu.pop();
-            return queu.length;
-        }
-
-        if(queu.length !== this.maximum) {
-            return queu.unshift(value);
+Queu.prototype.add = function addContent(item, force) {
+    if(this.content.length >= this.maxSize) {
+        if(force) {
+            this.content.shift();
+            this.content.push(item);
+            return true;
         }
 
         return false;
-    },
-
-    /**
-     * Get the next element that is attach to the `guildId` and delete it.
-     * 
-     * @param {string} guildId 
-     * @returns {*}
-     */
-    nextOf: function nextInQueu(guildId) {
-        return guildCache.queues.get(guildId).pop();
     }
-};
 
-const guildCache = {};
+    this.content.push(item);
+    return true;
+}
 
-guildCache['queues'] = {
-    setGuild: function setGuild(guildId) {
-        const array = [];
-        Object.defineProperty(this, guildId, {value: array});
-        return array;
-    },
+/**
+ * Make the bot play a song into a voice channel.
+ * 
+ * @param {Voice.AudioResource} song
+ * @param {?Discord.VoiceChannel} voiceChannel
+ */
+Queu.prototype.play = function playSong(song, voiceChannel) {
+    this.currentlyPlaying = true;
+    this.lastSong = song;
 
-    get: function getGuild(guildId) {
-        if(this[guildId]) return this[guildId];
-        return this.setGuild(guildId);
+    // create a voice connection if any has been created
+    if(!(this.connection instanceof Voice.VoiceConnection)) {
+        if(voiceChannel) this.createVoiceConnection(voiceChannel);
+        return internalError("Impossible to create a voice connection!");
     }
-};
+
+    // attach the audioPlayer
+    this.connection.subscribe(this.audioPlayer);
+
+    // play the audio
+    this.audioPlayer.play(song);
+}
+
+/**
+ * Create a voice connection to a voice channel.
+ * 
+ * @param {Discord.VoiceChannel} voiceChannel 
+ * @returns {Queu}
+ */
+Queu.prototype.createVoiceConnection = function createVoiceConnection(voiceChannel) {
+    this.connection = Voice.joinVoiceChannel({
+        channelId: voiceChannel.id,
+        guildId: voiceChannel.guildId,
+        adapterCreator: voiceChannel.guild.voiceAdapterCreator
+    });
+
+    return this;
+}
+
+/**
+ * Return this incoming item into the queu.
+ */
+Queu.prototype.next = function nextContent() {
+    return this.content.shift();
+}
+
+const voiceHandler = {};
+
+/**
+ * @type {Array<Queu>}
+ */
+voiceHandler['guilds'] = {};
+voiceHandler['maxSize'] = 100;
+
+voiceHandler['get'] = function getQueu(guildId) {
+    if(this.guilds[guildId]) return this.guilds[guildId];
+    this.guilds[guildId] = new Queu({
+        maxSize: this.maxSize
+    });
+    return this.guilds[guildId];
+}
 
 module['exports'] = voiceHandler;

@@ -34,9 +34,8 @@ Object.defineProperty(Object.getPrototypeOf(cache.prefix), "isValid", {
  * 
  * @param {string} key the key of the configuration value that you want to change
  * @param value the value has to be the same type than the last config key value
- * @param {boolean} save if the value is save into the file (can cause issue if the code is powered by the nodemon package)
  */
-configuration['set'] = function setCongif(key, value, save) {
+configuration['set'] = function setCongif(key, value) {
     const config = this.get(key);
 
     if(config === value) return this;
@@ -49,12 +48,6 @@ configuration['set'] = function setCongif(key, value, save) {
 
     // set the value of the key
     cache[key] = value;
-
-    if(save) {
-        fs.writeFile(__dirname + "\\configuration.json", Buffer.from(JSON.stringify(cache), "utf8"), {encoding: "utf8"}, err => {
-            if(err) throw err;
-        });
-    }
 
     return this;
 }
@@ -88,16 +81,19 @@ function internalError(message, actionAfter = "aborted") {
     }
 
     const error = new Error(`${full_package_name} --> ${message}${actionAfter !== "none" ? `\n  - ${"action " + actionAfter}` : ""}`);
+    const errorColorised = new Error(`${message}${actionAfter !== "none" ? `\n  - ${lib[actionAfter]("action " + actionAfter)}` : ""}`).stack;
 
-    console.error(
-        new Error(
-            `${colors.magenta(full_package_name)} --> ${message}${actionAfter !== "none" ? `\n  - ${lib[actionAfter]("action " + actionAfter)}` : ""}`
-        )
-    );
+    console.error(`${colors.magenta(`(${full_package_name})`)} ${errorColorised}`);
 
     return error;
 }
 
+/**
+ * Send a message in the console with the specification
+ * that it come from the package.
+ * 
+ * @param {string} message 
+ */
 function internalConsole(message) {
     console.log(`${colors.blue(`(${full_package_name})`)} ${message}`);
 }
@@ -108,11 +104,14 @@ function internalConsole(message) {
  * @param {string} message 
  * @returns {string}
  */
- function warn(message) {
-    const ERROR = new Error(message);
-    const WARNING = `Warn: ${colors.red(full_package_name)} --> ${ERROR.stack.slice(ERROR.stack.indexOf(ERROR.message))}`;
+ function internalWarn(message) {
+    const WARNING = `${colors.red(`(${full_package_name})`)} ${message}`;
     console.error(WARNING);
     return WARNING;
+}
+
+function debug(message) {
+    console.log(`${colors.bgGreen(`(${full_package_name})`)} ${message}`);
 }
 
 // const log = {
@@ -159,12 +158,32 @@ function parse(message) {
     }
 }
 
+/**
+ * Check if the given object can match with the command constructor.
+ * 
+ * @param {commandObj}
+ */
+ function isCommandObj(obj) {
+	// check if the entries and executable exist
+	if(!(obj['entries'] && obj['executable'])) return false;
+
+	// check if the entries is an array or a string
+	if(!(Array.isArray(obj['entries']) || typeof obj['entries'] === "string")) return false;
+
+	// check if the executable is a function
+	if(typeof obj['executable'] !== "function") return false;
+
+	return true;
+}
+
 module["exports"] = {
     InteractionType,
     configuration,
-    parse,
 	internalError,
     internalConsole,
-    warn,
-	capitalize
+    internalWarn,
+    debug,
+    parse,
+	capitalize,
+    isCommandObj
 };

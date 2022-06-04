@@ -4,7 +4,7 @@
  * Module requirements.
  */
 const Discord = require("discord.js");
-const { internalError, parse } = require("../requirements/utils.m.js");
+const { internalError, parse, isCommandObj } = require("../requirements/utils.m.js");
 
 /**
  * Model of commandFunction.
@@ -32,9 +32,10 @@ const commandFunction = function({channel, message, interaction, content, args, 
  * @param {commandFunction} executable the function that the command gonna execute
  * @param {Object} options
  * @param {?string} options.description
+ * @param {?string|Array<string>} options.categories
  * @param {?Array<command>} options.childrens
- * @param {Array<Discord.InteractionType>} options.interactionsTypes All types of interaction that can execute this command
- * @param {boolean} options.interactionsOnly if the command can be executed only by interactions
+ * @param {?Array<Discord.InteractionType>} options.interactionsTypes All types of interaction that can execute this command
+ * @param {?boolean} options.interactionsOnly if the command can be executed only by interactions
  */
 function command(entries, executable, options) {
 	if(typeof entries !== "string")
@@ -59,12 +60,17 @@ function command(entries, executable, options) {
 	this.executable = executable;
 
 	/**
-	 * Description of the command.
-	 * 
 	 * @type {string|undefined}
 	 */
 	this.description = options === undefined ? null : options.description;
-	
+
+	/**
+	 * @type {Array<string>}
+	 */
+	this.categories = options === undefined ? [] : 
+		Array.isArray(options.categories) ? options.categories : 
+			typeof options.categories === "string" ? [options.categories] : [];
+
 	/**
 	 * Childrens command that are relied to this command.
 	 * 
@@ -89,13 +95,36 @@ function command(entries, executable, options) {
 	this.genealogicalPos = -1;
 
 	// check if all values in options.childrens are an instance of command
-	if(options !== undefined)
-		if(options.childrens !== undefined)
-			if(options.childrens instanceof Array)
-				for(let i = 0; i < options.childrens.length; i++)
-					if(options.childrens[i] instanceof command)
-						this.childrens.push(options.childrens[i]);
-					else internalError(`options.childrens[${i}] is not an instance of command`, "skiped");
+	if(options) {
+		if(options.childrens) {
+			for(let i = 0; i < options.childrens.length; i++) {
+
+				// if the child is an instance of a command
+				if(options.childrens[i] instanceof command) {
+					// add it
+					this.childrens.push(options.childrens[i]);
+					continue;
+				}
+
+				// if the child is an object that can be resolved by command
+				if(isCommandObj(options.childrens[i])) {
+					// add it
+					this.childrens.push(
+						new command(
+							options.childrens[i]['entries'],
+							options.childrens[i]['executable'],
+							options.childrens[i]['options']
+						)
+					);
+					continue;
+				}
+
+				// but if `child` don't fit just throw an error
+				internalError(`options.childrens[${i}] can't be resolved.`, "skiped");
+
+			}
+		}
+	}
 
 	// init the command
 	init.apply(this);
@@ -218,6 +247,38 @@ command.prototype.match = function match(entry, options) {
 	// 	return compareArray(entry);
 
 	// return false;
+}
+
+/**
+ * Set the given categories to the command.
+ * 
+ * @param {Array<string>} categories
+ * @param {Object} options
+ * @param {boolean} options.recursive
+ */
+command.prototype.setCategory = function setCategory(categories, options) {
+	if(!Array.isArray(categories))
+		return internalError('The categories need to be an Array of String');
+
+	this.categories = this.categories.concat(categories);
+
+	// if the recursive options is enable
+	// set the category for all of the childs
+	if(options.recursive) {
+		for(const child of this.childrens) {
+			child.setCategory(categories, options);
+		}
+	}
+
+	return this;
+}
+
+const commandObj = {
+	/**
+	 * @type {Array<string>}
+	 */
+	"entries": [],
+	"executable": commandFunction
 }
 
 function init() {
