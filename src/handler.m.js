@@ -22,8 +22,11 @@ let commandLOADED = false;
 const handler = {};
 
 handler['command'] = require("./command.m.js");
+
 handler['configuration'] = configuration;
+
 handler['autorised'] = require("../requirements/autorised.m.js");
+
 handler['parse'] = parse;
 
 // Extra handler for voice connections
@@ -88,12 +91,15 @@ handler['register'] = function commandRegister(resolvable, options) {
 }
 
 /**
- * Resolve a Discord.Message or a Discord.Interaction and split the parameter
- * into its good place.
+ * Resolve a Discord.Message or a Discord.Interaction.
  * 
  * @param {Discord.Message|Discord.Interaction} resolvable an instance of a `Discord.Message` | `Discord.Interaction`
+ * @param {?Discord.Client} client the client of the bot
  */
-handler['resolve'] = function resolve(resolvable) {
+handler['resolve'] = function resolve(resolvable, client) {
+    // set the client of the bot into the cache
+    if(!handler.cache['clientBot']) handler.cache['clientBot'] = client;
+
     // check the type of the resolvable
     if(resolvable instanceof Discord.Message) {
         return this.executeMessage(resolvable);
@@ -133,7 +139,7 @@ handler['executeInteraction'] = function executeInteraction(interaction) {
     }
 
     const command = this.hasCommand(key);
-    if(command) command.execute(interaction);
+    if(command) command.execute(interaction, handler.cache['clientBot']);
 
     return this;
 }
@@ -167,7 +173,7 @@ handler['executeMessage'] = function executeMessage(message, commandName) {
     // check if the command requested exist
     const command = this.hasCommand(cmd_name, {filter: (value) => !value.interactionsOnly});
     if(command) {
-        return command.execute(message);
+        return command.execute(message, handler.cache['clientBot']);
     }
 
     return this;

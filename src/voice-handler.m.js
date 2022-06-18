@@ -9,19 +9,13 @@ function Queu({maxSize}) {
     this.maxSize = maxSize;
     this.currentlyPlaying = false;
     this.lastSong = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-    this.loop = false;
+    this.isLoop = false;
 
     this.connection = false;
     this.audioPlayer = Voice.createAudioPlayer();
 
-    // set the basic handling errors
-    this.audioPlayer.on("error", internalError);
-
-    // set an event when the audioPlayer has finished to play
-    this.audioPlayer.on("stateChange", (oldState, newState) => {
-        if(newState.status === "playing") return this.currentlyPlaying = true;
-        this.currentlyPlaying = false;
-    });
+    // set the events
+    this.setEvents();
 }
 
 /**
@@ -53,14 +47,13 @@ Queu.prototype.add = function addContent(item, force) {
 }
 
 /**
- * Make the bot play a song into a voice channel.
+ * Make the bot play a ressource into a voice channel.
  * 
- * @param {Voice.AudioResource} song
+ * @param {Voice.AudioResource} ressource
  * @param {?Discord.VoiceChannel} voiceChannel
  */
-Queu.prototype.play = function playSong(song, voiceChannel) {
+Queu.prototype.play = function playSong(ressource, voiceChannel) {
     this.currentlyPlaying = true;
-    this.lastSong = song;
 
     // create a voice connection if any has been created
     if(!(this.connection instanceof Voice.VoiceConnection)) {
@@ -72,7 +65,9 @@ Queu.prototype.play = function playSong(song, voiceChannel) {
     this.connection.subscribe(this.audioPlayer);
 
     // play the audio
-    this.audioPlayer.play(song);
+    this.audioPlayer.play(ressource);
+
+    return this;
 }
 
 /**
@@ -91,11 +86,53 @@ Queu.prototype.createVoiceConnection = function createVoiceConnection(voiceChann
     return this;
 }
 
+Queu.prototype.hasVoiceConnection = function hasVoiceConnection() {
+    if(this.connection instanceof Voice.VoiceConnection) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * 
+ * @param {Voice.CreateAudioPlayerOptions | undefined} options 
+ */
+Queu.prototype.regenerateAudioPlayer = function regenerateAudioPlayer(options) {
+    this.audioPlayer = Voice.createAudioPlayer(options);
+    this.setEvents();
+    return this;
+}
+
 /**
  * Return this incoming item into the queu.
  */
 Queu.prototype.next = function nextContent() {
     return this.content.shift();
+}
+
+Queu.prototype.setEvents = function setAudioPlayerEvents() {
+    // set the basic handling errors
+    this.audioPlayer.on("error", internalError);
+
+    // set an event when the audioPlayer has finished to play
+    this.audioPlayer.on("stateChange", (oldState, newState) => {
+        if(newState.status === "playing") return this.currentlyPlaying = true;
+        this.currentlyPlaying = false;
+    });
+
+    return this;
+}
+
+/**
+ * Get the content at the given index into the queu,
+ * return `boolean` if the index return something.
+ * 
+ * @param {Number} index
+ */
+Queu.prototype.getContent = function getContentFromQueu(index) {
+    if(this.content[index]) return this.content.splice(index, 1)[0];
+    return false;
 }
 
 const voiceHandler = {};

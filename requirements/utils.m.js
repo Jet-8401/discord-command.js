@@ -5,7 +5,6 @@
  */
 const colors = require("colors");
 const Discord = require("discord.js");
-const fs = require("fs");
 
 const __package = require("../package.json")
 const full_package_name = __package.name + "@" + __package.version;

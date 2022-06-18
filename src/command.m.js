@@ -4,7 +4,7 @@
  * Module requirements.
  */
 const Discord = require("discord.js");
-const { internalError, parse, isCommandObj } = require("../requirements/utils.m.js");
+const { internalError, parse, isCommandObj, internalConsole } = require("../requirements/utils.m.js");
 
 /**
  * Model of commandFunction.
@@ -16,8 +16,9 @@ const { internalError, parse, isCommandObj } = require("../requirements/utils.m.
  * @param {Array<string>} param.args the arguments of the command
  * @param {Discord.Interaction} param.interaction if the command was invoked by an interaction
  * @param {Discord.Interaction|Discord.Message} param.resolvable
+ * @param {Discord.Client} param.bot the client of the bot
  */
-const commandFunction = function({channel, message, interaction, content, args, resolvable}){};
+const commandFunction = function({channel, message, interaction, content, args, resolvable, bot}){};
 
 /**
  * This function will allow you to create a command.
@@ -136,9 +137,10 @@ function command(entries, executable, options) {
  * Execute the command chain.
  * 
  * @param {Discord.Message|Discord.Interaction} resolvable
+ * @param {Discord.Client} bot
  * @returns 
  */
-command.prototype.execute = function commandExexcution(resolvable) {
+command.prototype.execute = function commandExexcution(resolvable, bot) {
 	// argument type check
 	if(!(resolvable instanceof Discord.Message) && !(resolvable instanceof Discord.Interaction))
 		return internalError("resolvable is not a type of Discord.Message or Discord.Interaction");
@@ -162,14 +164,14 @@ command.prototype.execute = function commandExexcution(resolvable) {
 	}
 
 	// set the variable for pass arguments trough destructuration
-	const __arguments = {channel, content, args, interaction, message, resolvable};
+	const __arguments = {channel, content, args, interaction, message, resolvable, bot};
 
 	if(args.length === 0 || this.childrens.length === 0)
 		// execute the command
 		return this.executable(__arguments);
 
 	for(let i = 0; i < this.childrens.length; i++) {
-		// if the arguments at the same position than the *genealogicalPosition match
+		// if the arguments is at the same position than the *genealogicalPosition match
 		// execute the command chain for it
 		const match = this.childrens[i].match(args[this.genealogicalPos]);
 		if(match) return this.childrens[i].execute(resolvable, content, args);
