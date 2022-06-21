@@ -139,7 +139,7 @@ handler['executeInteraction'] = function executeInteraction(interaction, options
     }
 
     const command = this.hasCommand(key);
-    if(command) command.execute(interaction, this.cache.get('clientBot'), this.staticCommands);
+    if(command) command.execute(interaction, this.cache.get('clientBot'));
 
     return this;
 }
@@ -177,7 +177,7 @@ handler['executeMessage'] = function executeMessage(message, options) {
     // check if the command requested exist
     const command = this.hasCommand(cmd_name, {filter: (value) => !value.interactionsOnly});
     if(command) {
-        return command.execute(message, this.cache.get('clientBot'), this.staticCommands);
+        return command.execute(message, this.cache.get('clientBot'));
     }
 
     return this;
@@ -381,7 +381,6 @@ function addCommand(command) {
     return this;
 }
 
-/**
- * Export.
- */
+// Set the handler as a global variable and export it.
+global['handler'] = handler;
 module['exports'] = handler;

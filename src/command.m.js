@@ -135,7 +135,7 @@ function command(entries, executable, options) {
  * @param {Discord.Client} bot
  * @returns 
  */
-command.prototype.execute = function commandExexcution(resolvable, bot, staticCommands) {
+command.prototype.execute = function commandExexcution(resolvable, bot) {
 	// argument type check
 	if(!(resolvable instanceof Discord.Message) && !(resolvable instanceof Discord.Interaction))
 		return internalError("resolvable is not a type of Discord.Message or Discord.Interaction");
@@ -171,10 +171,10 @@ command.prototype.execute = function commandExexcution(resolvable, bot, staticCo
 	const nextArg = args[this.genealogicalPos];
 	const staticCommandsPrefix = configuration.get("static_commands_prefix");
 
-	if(staticCommands.enabled && staticCommands.count > 0) {
+	if(handler.staticCommands.enabled && handler.staticCommands.count > 0) {
 		if(nextArg.startsWith( staticCommandsPrefix )) {
 			// if the static commands can be called by this command execute it
-			const staticCommand = staticCommands.checkWith(this, nextArg);
+			const staticCommand = handler.staticCommands.checkWith(this, nextArg);
 			if(staticCommand) return staticCommand.executable(__arguments);
 		}
 	}

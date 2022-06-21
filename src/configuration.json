@@ -1,6 +1,5 @@
 {
     "prefix": "-",
     "static_commands_prefix": "--",
-    "block_bot_messages": true,
-    "clientBot": "any"
+    "block_bot_messages": true
 }
