@@ -7,6 +7,7 @@ const fs = require("fs");
 const Discord = require("discord.js");
 const {
     configuration,
+    cache,
     parse,
     internalError,
     internalConsole,
@@ -22,12 +23,11 @@ let commandLOADED = false;
 const handler = {};
 
 handler['command'] = require("./command.m.js");
-
+handler['staticCommands'] = require("./staticCommands.m.js");
 handler['configuration'] = configuration;
-
 handler['autorised'] = require("../requirements/autorised.m.js");
-
 handler['parse'] = parse;
+handler['cache'] = cache;
 
 // Extra handler for voice connections
 handler['voice'] = require("./voice-handler.m.js");
@@ -38,9 +38,6 @@ handler['voice'] = require("./voice-handler.m.js");
  * @type {Array<handler.command>}
  */
 handler['commands'] = [];
-
-// set the cache
-Object.defineProperty(handler, "cache", {value: {}});
 
 // define a getter to know if the commands was loaded
 Object.defineProperty(handler.commands, "loaded", {get: function() {
@@ -94,28 +91,31 @@ handler['register'] = function commandRegister(resolvable, options) {
  * Resolve a Discord.Message or a Discord.Interaction.
  * 
  * @param {Discord.Message|Discord.Interaction} resolvable an instance of a `Discord.Message` | `Discord.Interaction`
- * @param {?Discord.Client} client the client of the bot
+ * @param {object} options
+ * @param {?Discord.Client} options.client
  */
-handler['resolve'] = function resolve(resolvable, client) {
-    // set the client of the bot into the cache
-    if(!handler.cache['clientBot']) handler.cache['clientBot'] = client;
-
+handler['resolve'] = function resolve(resolvable, options) {
     // check the type of the resolvable
     if(resolvable instanceof Discord.Message) {
-        return this.executeMessage(resolvable);
+        return this.executeMessage(resolvable, options);
     }
 
     // if its an interaction resolve it into the handler
     if(resolvable instanceof Discord.Interaction)
-        return this.executeInteraction(resolvable);
+        return this.executeInteraction(resolvable, options);
 }
 
 /**
  * Execute a specified command by the base of an interaction.
  * 
  * @param {Discord.Interaction} interaction
+ * @param {object} options
+ * @param {?Discord.Client} options.client
  */
-handler['executeInteraction'] = function executeInteraction(interaction) {
+handler['executeInteraction'] = function executeInteraction(interaction, options) {
+    // set the bot into the cache
+    if(options) if(options.client) this.cache.set('clientBot', options.client);
+
     // check if devMod is enable
     if(!this.autorised.check(interaction.member)) return;
 
@@ -139,7 +139,7 @@ handler['executeInteraction'] = function executeInteraction(interaction) {
     }
 
     const command = this.hasCommand(key);
-    if(command) command.execute(interaction, handler.cache['clientBot']);
+    if(command) command.execute(interaction, this.cache.get('clientBot'), this.staticCommands);
 
     return this;
 }
@@ -148,9 +148,14 @@ handler['executeInteraction'] = function executeInteraction(interaction) {
  * Execute the specified command by the base of a message.
  * 
  * @param {Discord.Message} message an instance of a `Discord.Message`
- * @param {?string} commandName
+ * @param {object} options
+ * @param {?string} options.commandName
+ * @param {?Discord.Client} options.client
  */
-handler['executeMessage'] = function executeMessage(message, commandName) {
+handler['executeMessage'] = function executeMessage(message, options) {
+    // set the bot into the cache
+    if(options) if(options.client) this.cache.set('clientBot', options.client);
+
     // check if devMod is enable
     if(!this.autorised.check(message.member)) return;
 
@@ -166,14 +171,13 @@ handler['executeMessage'] = function executeMessage(message, commandName) {
     if(this.configuration.get("block_bot_messages") && message.author.bot)
         return;
 
-    // if the comandName is not specified, parse the message
-    // and get the name of the comand to execute
-    const cmd_name = typeof commandName === "string" ? commandName : this.parse(message)["command"];
+    // parse the message and get the name of the comand to execute
+    const cmd_name = this.parse(message)["command"];
 
     // check if the command requested exist
     const command = this.hasCommand(cmd_name, {filter: (value) => !value.interactionsOnly});
     if(command) {
-        return command.execute(message, handler.cache['clientBot']);
+        return command.execute(message, this.cache.get('clientBot'), this.staticCommands);
     }
 
     return this;
@@ -207,7 +211,7 @@ handler['hasCommand'] = function hasCommand(command, options = {strict: false, s
 
     const {strict, strictEntries, filter} = options;
 
-    // at refactorized...
+    // at refactorise...
 
     if(Array.isArray(command)) {
         const found = [];
@@ -260,12 +264,13 @@ handler['hasCommand'] = function hasCommand(command, options = {strict: false, s
     return internalError("command must be a typeof String or Array");
 }
 
+// TODO: fix the command, don't work with a string
 /**
  * Unlaod a command that was previously register.
  * 
  * @param {string|handler.command} command 
  */
-handler['unload'] = function unLoadCommand(command) {
+handler['unload'] = function unloadCommand(command) {
     for(let i = 0; i <  this.commands.length; i++) {
         for(const entry of this.commands[i]['entries']) {
             if(entry === command) {
@@ -370,8 +375,8 @@ function loadFile(path) {
 }
 
 function addCommand(command) {
-    internalConsole(command.entries[0] + " loaded");
     this.commands.push(command);
+    internalConsole(command.entries[0] + " loaded");
 
     return this;
 }

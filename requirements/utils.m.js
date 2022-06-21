@@ -12,15 +12,16 @@ const full_package_name = __package.name + "@" + __package.version;
 const InteractionType = "ApplicationComand" || "AutoComplete" || "Button" || "Command" || "ContextMenu" || "MessageComponent" || "SelectMenu";
 
 const configuration = {};
+const JsonConfig = require("../src/configuration.json");
 
-const cache = require("../src/configuration.json");
+const cache = {};
 
 // set the configuration
-Object.defineProperty(Object.getPrototypeOf(cache.prefix), "isValid", {
+Object.defineProperty(Object.getPrototypeOf(JsonConfig.prefix), "isValid", {
     get: function isValid() {
-        if(typeof cache.prefix === "string") {
-            if(cache.prefix.length > 0) {
-                return cache.prefix;
+        if(typeof JsonConfig.prefix === "string") {
+            if(JsonConfig.prefix.length > 0) {
+                return JsonConfig.prefix;
             }
         }
     
@@ -46,7 +47,7 @@ configuration['set'] = function setCongif(key, value) {
         return internalError(`the value must be the same as the default config value (${typeof config} instead of ${typeof value})`);
 
     // set the value of the key
-    cache[key] = value;
+    JsonConfig[key] = value;
 
     return this;
 }
@@ -59,9 +60,20 @@ configuration['set'] = function setCongif(key, value) {
  * @return if the returned value is undefined thats would say
  * that this key don't exist in the config
  */
-configuration['get'] = function getConfig(key) {
-    if(cache[key])
-        return cache[key];
+configuration['get'] = function getConfigutation(key) { return getFrom.apply(JsonConfig, [key]); };
+
+cache['set'] = function setCache(key, value) {
+    cache[key] = value;
+    return true;
+}
+
+cache['get'] = function getCache(key) { return getFrom.apply(this, [key]); };
+
+function getFrom(key) {
+    if(this[key])
+        return this[key];
+    
+    return false;
 }
 
 /**
@@ -178,6 +190,7 @@ function parse(message) {
 module["exports"] = {
     InteractionType,
     configuration,
+    cache,
 	internalError,
     internalConsole,
     internalWarn,

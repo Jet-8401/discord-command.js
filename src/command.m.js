@@ -4,7 +4,7 @@
  * Module requirements.
  */
 const Discord = require("discord.js");
-const { internalError, parse, isCommandObj, internalConsole } = require("../requirements/utils.m.js");
+const { internalError, parse, isCommandObj, configuration } = require("../requirements/utils.m.js");
 
 /**
  * Model of commandFunction.
@@ -73,8 +73,6 @@ function command(entries, executable, options) {
 			typeof options.categories === "string" ? [options.categories] : [];
 
 	/**
-	 * Childrens command that are relied to this command.
-	 * 
 	 * @type {Array<command>}
 	 */
 	this.childrens = [];
@@ -90,9 +88,6 @@ function command(entries, executable, options) {
 	 */
 	this.interactionsOnly = options === undefined ? false : options.interactionsOnly;
 
-	/**
-	 * The genealogical position of the current command.
-	 */
 	this.genealogicalPos = -1;
 
 	// check if all values in options.childrens are an instance of command
@@ -140,7 +135,7 @@ function command(entries, executable, options) {
  * @param {Discord.Client} bot
  * @returns 
  */
-command.prototype.execute = function commandExexcution(resolvable, bot) {
+command.prototype.execute = function commandExexcution(resolvable, bot, staticCommands) {
 	// argument type check
 	if(!(resolvable instanceof Discord.Message) && !(resolvable instanceof Discord.Interaction))
 		return internalError("resolvable is not a type of Discord.Message or Discord.Interaction");
@@ -164,16 +159,30 @@ command.prototype.execute = function commandExexcution(resolvable, bot) {
 	}
 
 	// set the variable for pass arguments trough destructuration
-	const __arguments = {channel, content, args, interaction, message, resolvable, bot};
+	const __arguments = {channel, content, args, interaction, message, resolvable, bot, command: this};
 
-	if(args.length === 0 || this.childrens.length === 0)
+	if(args.length === 0)
 		// execute the command
 		return this.executable(__arguments);
+
+	/**
+	 * @type {String}
+	 */
+	const nextArg = args[this.genealogicalPos];
+	const staticCommandsPrefix = configuration.get("static_commands_prefix");
+
+	if(staticCommands.enabled && staticCommands.count > 0) {
+		if(nextArg.startsWith( staticCommandsPrefix )) {
+			// if the static commands can be called by this command execute it
+			const staticCommand = staticCommands.checkWith(this, nextArg);
+			if(staticCommand) return staticCommand.executable(__arguments);
+		}
+	}
 
 	for(let i = 0; i < this.childrens.length; i++) {
 		// if the arguments is at the same position than the *genealogicalPosition match
 		// execute the command chain for it
-		const match = this.childrens[i].match(args[this.genealogicalPos]);
+		const match = this.childrens[i].match(nextArg);
 		if(match) return this.childrens[i].execute(resolvable, content, args);
 	}
 
@@ -188,16 +197,14 @@ command.prototype.execute = function commandExexcution(resolvable, bot) {
  * @param {string|Array<string>} entry
  * @param {Object} options
  * @param {boolean} options.strict
- * @returns {boolean|string}
+ * @returns {boolean|Array<string>}
  */
 command.prototype.match = function match(entry, options) {
 	if(!entry) return internalError("entry can't be undefined");
 
 	const strict = options ? (options.strict ?? false) : false;
 
-	if(entry instanceof Array) {
-		if(strict) return this.entries === entry;
-		
+	if(entry instanceof Array) {		
 		let matches = [];
 		// push every entry that matches with the entries of the command
 		for(var i = 0; i < entry.length; i++) {
@@ -205,8 +212,9 @@ command.prototype.match = function match(entry, options) {
 				if(this.entries[j] === entry[i]) matches.push(entry[i]);
 			}
 		}
-		if(i === matches.length) return true; // if all entry matches send a boolean
-		return matches;
+		if(strict) if(matches.length === i) return true;
+		if(matches.length > 0) return true;
+		return false;
 	}
 
 	if(typeof entry === "string") {
@@ -216,7 +224,7 @@ command.prototype.match = function match(entry, options) {
 		return false;
 	}
 
-	return internalError("entry must be an instance of string or an array");
+	internalError("entry must be an instance of string or an array");
 
 	// function compareWith(string) {
 	// 	for(let i = 0; i < this.entries.length; i++) {
@@ -275,12 +283,43 @@ command.prototype.setCategory = function setCategory(categories, options) {
 	return this;
 }
 
-const commandObj = {
-	/**
-	 * @type {Array<string>}
-	 */
-	"entries": [],
-	"executable": commandFunction
+/**
+ * Add a child to the command.
+ * 
+ * @param {command} children 
+ * @param {object} options
+ * @param {?boolean} options.setCategories if the category is automatically defined on the child
+ */
+command.prototype.addChild = function addChildren(children, options) {
+	if(!(children instanceof command)) {
+		return internalError('children must be an instance of command.');
+	}
+
+	// check the possibles options
+	if(options) {
+		if(options.setCategories) children.setCategory(this.categories, options);
+	}
+
+	children.genealogicalPos = (this.genealogicalPos + 1);
+	init.apply(children);
+
+	this.childrens.push(children);
+
+	return this;
+}
+
+/**
+ * Add an array of childrens.
+ * 
+ * @param {Array<command>} childrens 
+ * @param {object} options
+ * @param {?boolean} options.setCategories if the category is automatically defined on the child
+ * @returns 
+ */
+command.prototype.addChilds = function addChildrends(childrens, options) {
+	for(const child of childrens) this.addChild(child, options);
+
+	return this;
 }
 
 function init() {
