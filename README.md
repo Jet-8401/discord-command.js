@@ -15,8 +15,6 @@ This package is a command manager for your discord bot developped for [Discord.j
 
 ## Basics
 
-<br/>
-
 ### Installation: `npm install discord-command.js`
 <br/>
 
@@ -268,5 +266,54 @@ _`Note :  if categories is not defined the command gonna go into the default cat
 
 ### <a id="advanced-chapter2" class="title">2. Voice handler</a>
 ---
+
+The voice handler add a queu and a bunch of functions and properties per guild to help through voice connection.
+
+<br/>
+
+#### <span class="litle-title">How to use
+
+First you need to get the queu from a guildId by using
+```javascript
+handler.voice.get(guildId);
+```
+
+Function Description
+
+`Get the queu of of the current guild and if the queu is not set,`
+<br/>
+`create it and attribute it.`
+
+<br/>
+
+#### <span class="litle-title">What is a queu ?
+A `queu` is an object to manipulates voices between guilds more easily.
+
+_Methods and properties of a `queu`_
+
+<br/>
+
+| Property | Type | Description |
+|---|:---:|---|
+| content | `Array<any>` | The content of the current queu |
+| maxSize | `number` | The maximum size of the queu |
+| currentlyPlaying | `boolean` | If the queu is playing an audio ressource |
+| lastSong | `any` | The last song the queu has played |
+| isLoop | `boolean` | If the queu is in a loop |
+| connection | `false` or `Voice.VoiceConnection` | False is the connection to the voice channel is not yet created |
+| audioPlayer | `Voice.AudioPlayer` | The player that gonna play the song into the channel |
+
+<br/>
+<br/>
+
+| Methods | Arguments | Description |
+|---|:---:|---|
+| add | `item: any, force: boolean` | Add something to the queu. `force` param is to enabled if you want to 'break' the maximum size of the queu, that means that if the length of the curernt queu is too long to add something eles the first element on the queu gonna be deleted and the item gonna be pushed into the end. By default the maximum size is set to 100 and can be change into `handler.voice.maxSize` |
+| play | `ressource: Voice.AudioRessource, voiceChannel: Discord.VoiceChannel/null` | Make the bot play a ressource into a voice channel |
+| createVoiceConnection | `voiceChannel: Discord.VoiceChannel` | Create a voice connection to a voice channel |
+| hasVoiceConnection | | Check if the queu have a voice connection |
+| regenerateAudioPlayer | `options: Voice.CreateAudioPlayerOptions/undefined` | Regenerate the audioPlayer of the queu |
+| next | | Return the incoming item into the queu |
+| getContent | `index: number` | Get the content at the given index into the queu return `boolean` if the index return something |
 
 
