@@ -1,44 +1,4 @@
-<style>
-    :root {
-        --main-blue: #1057e4;
-        --orange: #ff6600;
-    }
-
-    def {
-        color: var(--main-blue);
-    }
-
-    a {
-        color: inherit;
-        text-decoration: underline;
-    }
-
-    a.title {
-        text-decoration: none;
-    }
-    a.title:hover {
-        color: inherit;
-        text-decoration: none;
-    }
-
-    .type {
-        color: var(--orange);
-        font-family: "Lucida Console", "Courier New", monospace;
-        font-size: 90%;
-        background: #111;
-        padding: 5px;
-    }
-
-    .litle-title {
-        text-decoration: underline;
-        font-weight: bold;
-    }
-
-    .interFile {
-        color: var(--main-blue);
-    }
-
-</style>
+<link href="./markdownStyle.css" rel="stylesheet"></link>
 
 # discord-command.js
 
@@ -54,7 +14,6 @@ This package is a command manager for your discord bot developped for [Discord.j
 <br/>
 
 ## Basics
-***
 
 <br/>
 
@@ -78,7 +37,6 @@ _`Note: handler is set to a global variable`_
 
 ### <a id="basics-chapter1" class="title">1. Load a command</a>
 ---
-<br/>
 
 ```javascript 
 handler.register(resolvable, options);
@@ -108,7 +66,6 @@ _`If the resolvable is a path to a folder it gonna read every other folder in it
 
 ### <a id="basics-chapter2" class="title">2. How to create a command</a>
 ---
-<br/>
 
 Using the command constructor.
 ```javascript
@@ -198,7 +155,6 @@ module.exports = ping;
 
 ### <a id="basics-chapter3" class="title">3. Configure the handler</a>
 ---
-<br/>
 
 #### <span class="litle-title">Set the bot</span>
 
@@ -220,6 +176,7 @@ handler.configuration.set("prefix", "!");
 ```
 You must enter the key and the value that you want to applied to it `(the value must be the same type as the one before)`.
 
+<br/>
 <br/>
 
 ### <a id="basics-chapter4" class="title">4. Execute the commands</a>
@@ -259,7 +216,6 @@ _`Note : we don't give any arguments to the executable so we have to make that t
 <br/>
 
 ## Advanced
-***
 
 <br/>
 <br/>
