@@ -36,3 +36,7 @@ a.title:hover {
 .interFile {
     color: var(--main-blue);
 }
+
+.command {
+    color: var(--main-blue);
+}

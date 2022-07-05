@@ -22,11 +22,6 @@ Get the handler & the command constructor
 ```javascript
 const { handler, command } = require("discord-command.js");
 ```
-or
-```javascript
-const handler = require("discord-command.js");
-const command = require("discord-command.js")["handler"];
-```
 <br/>
 
 _`Note: handler is set to a global variable`_
@@ -80,25 +75,26 @@ const myCommand = {
 ```
 
 For creating a command you must have 3 keys
-- entries : <span class="type">string|string[]</span> `(the entries of the command)`
-- executable : <span class="type">function</span> `(a callback function that gonna be the executable for this command)`
+- entries : <span class="type">string|string[]</span> `(the names of the command)`
+- executable : <span class="type">function</span> `(a callback function that gonna be the executable for this command (the arguments are given through destructuration))`
 - options: <span class="type">object|null</span> `(the options for this command)`
 
 <br/>
 
 ---
-#### `executable : `<span class="type">function({ channel, message, interaction, resolvable, content, args, bot })</span>
+#### `executable : `<span class="type">function({ channel, message, interaction, resolvable, content, args, bot, command })</span>
 <br/>
 
 | Parameter | Type | Description |
 |---|:---:|---|
-| channel | Disord.TextBasedChannels | The channel where the command has been invoked |
-| message | Discord.Message | The message that triggered the command |
-| interaction | Discord.Interaction | The interaction that triggered the command |
-| resolvable | Discord.Message or Discord.Interaction | Interaction or a Message depends on wich has triggered the command |
-| content | string | The content of the message without the command |
-| args | string[] | The given arguments |
-| bot | Discord.Client | The client of the bot (can be undefined if the bot was not defined before) |
+| channel | `Disord.TextBasedChannels` | The channel where the command has been invoked |
+| message | `Discord.Message` | The message that triggered the command |
+| interaction | `Discord.Interaction` | The interaction that triggered the command |
+| resolvable | `Discord.Message` or `Discord.Interaction` | Interaction or a Message depends on wich has triggered the command |
+| content | `string` | The content of the message without the command |
+| args | `string[]` | The given arguments |
+| bot | `Discord.Client` | The client of the bot (can be undefined if the bot was not defined before) |
+| command | `command` | The current command (except on static commands) |
 
 <br/>
 <br/>
@@ -111,11 +107,11 @@ For creating a command you must have 3 keys
 
 | Parameter | Type | Description |
 |---|:---:|---|
-| description | string | The description of the command |
-| categories | string[] | The categories of the command |
-| childrens | command[] | The childrens/subcommands of the command |
-| interactionsTypes | string[] | The types of interaction that could triggered this command |
-| interactionOnly | boolean | If the the command can be triggered only with interactions |
+| description | `string` | The description of the command |
+| categories | `string[]` | The categories of the command |
+| childrens | `command[]` | The childrens/subcommands of the command |
+| interactionsTypes | `string[]` | The types of interaction that could triggered this command |
+| interactionOnly | `boolean` | If the the command can be triggered only with interactions |
 <br/>
 
 ### Examples of the same command
@@ -124,7 +120,7 @@ For creating a command you must have 3 keys
 module.exports = {
     entries: "ping",
 
-    executable: async function pingFunction({resolvable}) {
+    executable: function pingFunction({resolvable}) {
         resolvable.reply("Pong !");
     },
 
@@ -140,7 +136,7 @@ const { command } = require("discord-command.js");
 const ping = new command(
     "ping",
 
-    async function pingFunction({resolvable}) {
+    function pingFunction({resolvable}) {
         resolvable.reply("Pong !");
     },
 
@@ -207,7 +203,7 @@ ping.executable(); // executable is the main function of the command
 
 <br/>
 
-_`Note : we don't give any arguments to the executable so we have to make that the command don't ask for them.`_
+_`Note : we don't give any arguments to the executable so we have to make sure that the command don't ask for them.`_
 
 <br/>
 <br/>
@@ -222,7 +218,7 @@ _`Note : we don't give any arguments to the executable so we have to make that t
 ---
 
 Static commands are some commands that affect a certain category of command _`(like the default one)`_ and act almost like a child of theme, that's mean that the command can be called like it was a child but with a specific prefix _`("--" by default)`_.
-Like for example if i create a command <command>info</command> that gonna tell me every utils informations of the previous/parent command i would call it like that : `-ping --info`, the utility of that is that in the <command>info</command> executable the `command` argument gonna point into the previous command _`(in that case "ping")`_. The other difference between a static command and a children is that the static don't gonna be a part of the command but a part of the category.
+Like for example if i create a command <span class="command">info</span> that gonna tell me every utils informations of the previous/parent command i would call it like that : `-ping --info`, the utility of that is that in the <span class="command">info</span> executable the `command` argument gonna point into the previous command _`(in that case "ping")`_. The other difference between a static command and a children is that the static don't gonna be a part of the command but a part of the category.
 
 #### <span class="litle-title">Examples
 
@@ -232,17 +228,12 @@ const infoCommand = {
     executable: ({message, command}) => {
         message.reply(`The categories of ${command.entries[0]} is ${command.categories.join('-')}`);
     }
-    options: {
-        categories
-    }
 }
 
 handler.staticCommands.add(infoCommand);
 ```
 
-If i type `-ping --info` into the chat and <command>ping</command> was loaded into `other/` folder and the `auto_categorise` was enabled _`(ping will have 'other' as a category)`_
-
-The bot would reply to me with that message : `The categories of ping is utils-other`
+If i type `-ping --info` into the chat and <span class="command">ping</span> have `other` and `utils` into its categories the bot would reply to me with that message : `The categories of ping is utils-other`
 
 <br/>
 <br/>
@@ -316,4 +307,50 @@ _Methods and properties of a `queu`_
 | next | | Return the incoming item into the queu |
 | getContent | `index: number` | Get the content at the given index into the queu return `boolean` if the index return something |
 
+<br/>
 
+### <a id="advanced-chapter2" class="title">2. White/Black lists</a>
+---
+
+The `handler` have a white and black list, the white list is here to take the lead on the black.
+<br/>
+That's mean that it gonna check the white list before the black for example if you put `@everyone` on the black list but you put your tag into the white
+list you will be able to triggered a command.
+<br/>
+In both list you can add **tags** `(Rothoven#4388)`, **roles** `(@everyone | moderator)` and **id** `(775453112064147516)`.
+
+```javascript
+handler.autorised.addWhiteList(devs);
+handler.autorised.addBlackList('@everyone');
+handler.autorised.enabled = true;
+```
+That will allowed the people that are in `devs` but not everybody else.
+
+<br/>
+
+### <a id="advanced-chapter3" class="title">3. Handler properties and methods.</a>
+---
+
+<br/>
+
+| Properties | Type | Description |
+|---|:---:|---|
+| command | `command` | The command constructor |
+| staticCommands | `object` | The instance for statics commands |
+| configuration | `object` | The configuration of the handler |
+| autorised | `object` | The instance for black/white list |
+| cache | `object` | The cache of the handler |
+| voice | `object` | The instance for voice connections |
+| commands | `Array<command>` | The array that contains every commands |
+
+<br/>
+
+| Methods | Arguments | Description |
+|---|:---:|---|
+| register | resolvable: `string / command`, options: `{ auto_categorise: boolean, recursive: boolean, filter: (name: string, path: string, isDirectory: boolean) => {} } / undefined` | Register a command to the handler |
+| executeInteraction | interaction: `Discord.Interaction`, options: `{ client: Discord.Client } / undefined` | Execute a specified command by the base of an interaction |
+| executeMessage | message: `Discord.Message`, options: `{ commandName: string, client: Discord.Client } / undefined` | Execute the specified command by the base of a message |
+| hasCommand | command: `string / Array<string> / Array<Array<string>>`, options: `{ strict: boolean, strictEntries: boolean, filter: (value, index: number, array: Array<any>) => {} } / undefined` | Check if the command has specific command |
+| unload | command: `string / command` | Unlaod a command that was previously register. Can use `*` to unload all the commands. |
+| resolve | resolvable: `Discord.Message / Discord.Interaction`, options: `{ client: Discord.Client } / undefined` | Resolve a Discord.Message or a Discord.Interaction |
+| parse | message: `Discord.Message` | Parse a message or an instance of and split it into three (command, content, arguments) |
