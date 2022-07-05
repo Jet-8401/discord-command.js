@@ -18,7 +18,7 @@ autorises['whiteList'] = [];
 autorises['blackList'] = [];
 
 /**
- * Add a role or a user id to the white list.
+ * Add a role, a user id or a tag to the white list.
  * 
  * @param {string|Array<string>} p 
  */
@@ -27,7 +27,7 @@ autorises['addWhiteList'] = function addToWhiteList(p) {
 }
 
 /**
- * Add a role or a user id to the white list.
+ * Add a role, a user id or a tag to the black list.
  * 
  * @param {string|Array<string>} p 
  */
@@ -74,9 +74,15 @@ autorises['check'] = function checkLists(member) {
     return false;
 }
 
+/**
+ * The cheklist check the id, roles, tag of the member
+ */
 function checkList(member, list) {
     // check if the id is in the list
     if(list.includes(member.id)) return true;
+
+    // check if the tag is in the list
+    if(list.includes(member.user.tag)) return true;
 
     // check if the member role is on the list
     for(const container of list) {

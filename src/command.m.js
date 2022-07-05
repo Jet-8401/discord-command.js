@@ -11,14 +11,15 @@ const { internalError, parse, isCommandObj, configuration } = require("../requir
  * 
  * @param {Object} param
  * @param {Discord.TextBasedChannels} param.channel the channel where the command has been invoked
- * @param {Discord.Message} param.message the message that trigered the command
+ * @param {Discord.Message} param.message the message that triggered the command
  * @param {string} param.content the content of the message (without the command)
  * @param {Array<string>} param.args the arguments of the command
  * @param {Discord.Interaction} param.interaction if the command was invoked by an interaction
  * @param {Discord.Interaction|Discord.Message} param.resolvable
  * @param {Discord.Client} param.bot the client of the bot
+ * @param {command} param.command
  */
-const commandFunction = function({channel, message, interaction, content, args, resolvable, bot}){};
+const commandFunction = function({channel, message, interaction, content, args, resolvable, bot, command}){};
 
 /**
  * This function will allow you to create a command.
@@ -174,7 +175,9 @@ command.prototype.execute = function commandExexcution(resolvable, bot) {
 	if(handler.staticCommands.enabled && handler.staticCommands.count > 0) {
 		if(nextArg.startsWith( staticCommandsPrefix )) {
 			// if the static commands can be called by this command execute it
-			const staticCommand = handler.staticCommands.checkWith(this, nextArg);
+			const staticCommand = handler.staticCommands.checkWith(this, nextArg.slice(
+				handler.configuration.get("static_commands_prefix").length
+			));
 			if(staticCommand) return staticCommand.executable(__arguments);
 		}
 	}

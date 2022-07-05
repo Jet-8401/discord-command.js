@@ -18,7 +18,7 @@ staticCommands['count'] = 0;
  * Add a static command to every command that matches the category, 
  * if category is not defined the command gonna expend to every command.
  * 
- * @param {command} obj an intance of handler.command or an object that is accepted by a command constructor
+ * @param {object|command} obj an intance of handler.command or an object that is accepted by a command constructor
  * @param {?Array<string>} categories 
  */
 staticCommands['add'] = function addStaticCommand(obj, categories) {
@@ -54,6 +54,7 @@ staticCommands['add'] = function addStaticCommand(obj, categories) {
  * check wich command to execute by its name.
  * 
  * @param {commandFunction} command 
+ * @param {string} staticCommandName
  */
 staticCommands['checkWith'] = function check(command, staticCommandName) {
     for(const category in this.categories) {
