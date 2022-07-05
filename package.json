@@ -1,6 +1,6 @@
 {
 	"name": "discord-command.js",
-	"version": "2.0.7",
+	"version": "3.0.0",
 	"description": "An npm package that help you with command for your discord bot.",
 	"main": "./main.js",
 	"author": "jet-8401",
