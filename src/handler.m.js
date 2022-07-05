@@ -68,7 +68,7 @@ handler['register'] = function commandRegister(resolvable, options) {
     if(typeof resolvable === "string") {
 
         // if the path is relative set it from the root
-        const fullPATH = resolvable.startsWith(__dirname) ? resolvable : fs.realpathSync(__dirname + "../../../" + resolvable);
+        const fullPATH = resolvable.startsWith(__dirname) ? resolvable : fs.realpathSync(__dirname + "../../../../" + resolvable);
 
         if(!fs.existsSync(fullPATH))
             return internalError(`the given path don't exist ${fullPATH}`);
@@ -298,7 +298,7 @@ function isDirectory(path) {
     return fs.statSync(path).isDirectory();
 }
 
-function loadDirectory(path, options) {
+function loadDirectory(path, options = {}) {
     const directories = {};
 
     // loop through the given directory
