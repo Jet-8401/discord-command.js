@@ -5,7 +5,7 @@
 <p>
 <img alt="npm" src="https://img.shields.io/npm/v/discord-command.js">
 <img alt="npm" src="https://img.shields.io/npm/dt/discord-command.js">
-<img alt="NPM" src="https://img.shields.io/npm/l/discord-command.js">
+<img alt="GitHub" src="https://img.shields.io/github/license/Jet-8401/discord-command.js">
 </p>
 
 This package is a command manager for your discord bot developped for [Discord.js](https://discord.js.org/).
