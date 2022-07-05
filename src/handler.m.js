@@ -52,7 +52,7 @@ Object.defineProperty(handler.commands, "loaded", {get: function() {
 function filterRegister(name, path, isDirectory) {};
 
 /**
- * Add a command to the handler.
+ * Register a command to the handler.
  * 
  * @param {string|handler.command} resolvable a folder path to a directory of commands using `file://` protocol or a command
  * @param {Object} options
@@ -264,20 +264,30 @@ handler['hasCommand'] = function hasCommand(command, options = {strict: false, s
     return internalError("command must be a typeof String or Array");
 }
 
-// TODO: fix the command, don't work with a string
 /**
  * Unlaod a command that was previously register.
+ * Can use `*` to unload all the commands.
  * 
  * @param {string|handler.command} command 
  */
 handler['unload'] = function unloadCommand(command) {
+    function _unload_(i) {
+        internalConsole(`${command} is unload!`);
+        this.commands.splice(i, 1);
+        return true;
+    }
+
     for(let i = 0; i <  this.commands.length; i++) {
         for(const entry of this.commands[i]['entries']) {
-            if(entry === command) {
-                internalConsole(`${command} is unload!`);
-                this.commands.splice(i, 1);
-                return true;
+
+            if(typeof entry === "string") {
+                if(entry === command || command === '*') return _unload_.apply(this, [i]);
             }
+
+            if(entry instanceof this.command) {
+                if(entry.match(command.entries)) return _unload_.apply(this, [i]);
+            }
+
         }
     }
 
