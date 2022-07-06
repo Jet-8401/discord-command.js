@@ -44,7 +44,7 @@ staticCommands['add'] = function addStaticCommand(obj, categories) {
     }
 
     // add the categories and the command to it
-    Object.defineProperty(this.categories, categories.join('/'), {value: [__command]});
+    this.categories[categories.join()] = [__command];
 
     return this;
 }
@@ -57,14 +57,24 @@ staticCommands['add'] = function addStaticCommand(obj, categories) {
  * @param {string} staticCommandName
  */
 staticCommands['checkWith'] = function check(command, staticCommandName) {
-    for(const category in this.categories) {
-        for(const commandCategory of command.categories) {
+    function play(category) {
+        for(const staticCommand of this.categories[category]) {
+            if(staticCommand.match(staticCommandName)) return staticCommand;
+        }
+    }
 
-            // if the categories matches or there is something into the default category
-            if(category.includes(commandCategory) || category === DEFAULT_MARK) {
-                for(const staticCommand of this.categories[category]) {
-                    if(staticCommand.match(staticCommandName)) return staticCommand;
-                }
+    for(const category in this.categories) {
+        // if its the default category
+        if(category === DEFAULT_MARK) {
+            const staticCommand = play.apply(this, [category]);
+            if(staticCommand) return staticCommand;
+        }
+
+        for(const commandCategory of command.categories) {
+            // if the categories matches
+            if(category.includes(commandCategory)) {
+                const staticCommand = play.apply(this, [category]);
+                if(staticCommand) return staticCommand;
             }
 
         }
