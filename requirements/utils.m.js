@@ -14,7 +14,7 @@ const InteractionType = "ApplicationComand" || "AutoComplete" || "Button" || "Co
 const configuration = {};
 const JsonConfig = require("../src/configuration.json");
 
-const cache = {};
+const offsetSpace = '';
 
 // set the configuration
 Object.defineProperty(Object.getPrototypeOf(JsonConfig.prefix), "isValid", {
@@ -60,20 +60,52 @@ configuration['set'] = function setCongif(key, value) {
  * @return if the returned value is undefined thats would say
  * that this key don't exist in the config
  */
-configuration['get'] = function getConfigutation(key) { return getFrom.apply(JsonConfig, [key]); };
+configuration['get'] = function getConfigutation(key) { 
+    if(JsonConfig[key])
+        return JsonConfig[key];
 
-cache['set'] = function setCache(key, value) {
-    cache[key] = value;
-    return true;
+    return false;
+};
+
+// -- default cache -- //
+
+function defaultCache() {}
+
+defaultCache.prototype.set = function set(key, value) {
+    this[key] = value;
+    return this;
 }
 
-cache['get'] = function getCache(key) { return getFrom.apply(this, [key]); };
+defaultCache.prototype.get = function get(key) {
+    return this[key];
+}
 
-function getFrom(key) {
-    if(this[key])
-        return this[key];
-    
-    return false;
+// -- guild cache -- //
+
+function guildsCache() {}
+
+/**
+ * @param {string} guildId 
+ * @returns 
+ */
+guildsCache.prototype.set = function setGuildCache(guildId) {
+    this[guildId] = new defaultCache();
+    return this[guildId];
+}
+
+/**
+ * Get the cache of the given guild, set the cache for the guild
+ * by default if it doesen't exist.
+ * 
+ * @param {string} guildId
+ * @return {GuildCache}
+ */
+guildsCache.prototype.get = function getGuildCache(guildId) {
+    if(!this[guildId]) {
+        return this.set(guildId);
+    }
+
+    return this[guildId];
 }
 
 /**
@@ -94,7 +126,7 @@ function internalError(message, actionAfter = "aborted") {
     const error = new Error(`${full_package_name} --> ${message}${actionAfter !== "none" ? `\n  - ${"action " + actionAfter}` : ""}`);
     const errorColorised = new Error(`${message}${actionAfter !== "none" ? `\n  - ${lib[actionAfter]("action " + actionAfter)}` : ""}`).stack;
 
-    console.error(`${colors.magenta(`(${full_package_name})`)} ${errorColorised}`);
+    console.error(`${offsetSpace}${colors.magenta(`(${full_package_name})`)} ${errorColorised}`);
 
     return error;
 }
@@ -106,7 +138,7 @@ function internalError(message, actionAfter = "aborted") {
  * @param {string} message 
  */
 function internalConsole(message) {
-    console.log(`${colors.blue(`(${full_package_name})`)} ${message}`);
+    console.log(`${offsetSpace}${colors.blue(`(${full_package_name})`)} ${message}`);
 }
 
 /**
@@ -190,7 +222,8 @@ function parse(message) {
 module["exports"] = {
     InteractionType,
     configuration,
-    cache,
+    defaultCache,
+    guildsCache,
 	internalError,
     internalConsole,
     internalWarn,
