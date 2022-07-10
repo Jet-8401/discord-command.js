@@ -4,6 +4,7 @@
  * Module requirements.
  */
 const Discord = require("discord.js");
+const { defaultCache, guildsCache } = require("../requirements/utils.m.js");
 const { internalError, parse, isCommandObj, configuration } = require("../requirements/utils.m.js");
 
 /**
@@ -38,6 +39,9 @@ const commandFunction = function({channel, message, interaction, content, args, 
  * @param {?Array<command>} options.childrens
  * @param {?Array<Discord.InteractionType>} options.interactionsTypes All types of interaction that can execute this command
  * @param {?boolean} options.interactionsOnly if the command can be executed only by interactions
+ * @param {?number} options.timeout the waiting time (in ms) for executing an other time this command
+ * @param {?commandFunction} options.onTimeout the function that gonna be executed if the command been timedout
+ * @param {?boolean} options.universalTimeout if the timeout applied through any discord guilds/servers
  */
 function command(entries, executable, options) {
 	if(typeof entries !== "string")
@@ -64,12 +68,12 @@ function command(entries, executable, options) {
 	/**
 	 * @type {string|undefined}
 	 */
-	this.description = options === undefined ? null : options.description;
+	this.description = !options ? null : options.description;
 
 	/**
 	 * @type {Array<string>}
 	 */
-	this.categories = options === undefined ? [] : 
+	this.categories = !options ? [] : 
 		Array.isArray(options.categories) ? options.categories : 
 			typeof options.categories === "string" ? [options.categories] : [];
 
@@ -81,15 +85,52 @@ function command(entries, executable, options) {
 	/**
 	 * The type of interactions that can execute this command.
 	 */
-	this.interactionsTypes = options === undefined ? [] : 
+	this.interactionsTypes = !options ? [] : 
 		Array.isArray(options.interactionsTypes) ? options.interactionsTypes : [options.interactionsTypes];
 
 	/**
 	 * If the command can be executed only by interactions.
+	 * @type {boolean}
 	 */
-	this.interactionsOnly = options === undefined ? false : options.interactionsOnly;
+	this.interactionsOnly = !options ? false : options.interactionsOnly;
+
+	/**
+	 * The timeout between each execution of this command.
+	 * @type {number}
+	 */
+	this.timeout = options ? options.timeout : 0;
+
+	/**
+	 * The function that gonna be executed if the command been timedout
+	 * @type {Function|false}
+	 */
+	this.onTimeout = options ? options.onTimeout : false;
+
+
+	/**
+	 * If the timeout is the same for every guilds.
+	 * @type {boolean}
+	 */
+	this.universalTimeout = !options ? false : options.universalTimeout;
 
 	this.genealogicalPos = -1;
+
+	this.cache = new defaultCache();
+
+	if(!this.universalTimeout) this.cache.set('guilds', new guildsCache());
+
+	// if the default timeout for the commands
+	// exist and that the current command don't have
+	// one, attribute it the default
+	if(handler.cache.get('timeout_by_default')) {
+		if(!this.timeout) this.timeout = handler.cache.get('default_timeout');
+	}
+
+	// same for the timeout but with the function
+	// that is executed when the command is timed out
+	if(handler.cache.get('default_ontimeout')) {
+		if(!this.onTimeout) this.onTimeout = handler.cache.get('default_ontimeout');
+	}
 
 	// check if all values in options.childrens are an instance of command
 	if(options) {
@@ -133,10 +174,9 @@ function command(entries, executable, options) {
  * Execute the command chain.
  * 
  * @param {Discord.Message|Discord.Interaction} resolvable
- * @param {Discord.Client} bot
  * @returns 
  */
-command.prototype.execute = function commandExexcution(resolvable, bot) {
+command.prototype.execute = function commandExexcution(resolvable) {
 	// argument type check
 	if(!(resolvable instanceof Discord.Message) && !(resolvable instanceof Discord.Interaction))
 		return internalError("resolvable is not a type of Discord.Message or Discord.Interaction");
@@ -160,38 +200,72 @@ command.prototype.execute = function commandExexcution(resolvable, bot) {
 	}
 
 	// set the variable for pass arguments trough destructuration
-	const __arguments = {channel, content, args, interaction, message, resolvable, bot, command: this};
+	const __arguments = {
+		channel,
+		content,
+		args,
+		interaction,
+		message,
+		resolvable,
+		bot: handler.cache.get('client'),
+		command: this
+	};
 
-	if(args.length === 0)
-		// execute the command
-		return this.executable(__arguments);
+	// if there at least one arguments
+	// check the statics commands and the childrens
+	if(args.length > 0) {
+		const nextArg = args[this.genealogicalPos];
+		const staticCommandsPrefix = configuration.get("static_commands_prefix");
 
-	/**
-	 * @type {String}
-	 */
-	const nextArg = args[this.genealogicalPos];
-	const staticCommandsPrefix = configuration.get("static_commands_prefix");
+		if(handler.staticCommands.enabled && handler.staticCommands.count > 0) {
+			if(nextArg.startsWith( staticCommandsPrefix )) {
+				// if the static commands can be called by this command execute it
+				const staticCommand = handler.staticCommands.checkWith(this, nextArg.slice(
+					handler.configuration.get("static_commands_prefix").length
+				));
+				if(staticCommand) return staticCommand.executable(__arguments);
+			}
+		}
 
-	if(handler.staticCommands.enabled && handler.staticCommands.count > 0) {
-		if(nextArg.startsWith( staticCommandsPrefix )) {
-			// if the static commands can be called by this command execute it
-			const staticCommand = handler.staticCommands.checkWith(this, nextArg.slice(
-				handler.configuration.get("static_commands_prefix").length
-			));
-			if(staticCommand) return staticCommand.executable(__arguments);
+		for(let i = 0; i < this.childrens.length; i++) {
+			// if the arguments is at the same position than the *genealogicalPosition match
+			// execute the command chain for it
+			const match = this.childrens[i].match(nextArg);
+			if(match) return this.childrens[i].execute(resolvable);
 		}
 	}
 
-	for(let i = 0; i < this.childrens.length; i++) {
-		// if the arguments is at the same position than the *genealogicalPosition match
-		// execute the command chain for it
-		const match = this.childrens[i].match(nextArg);
-		if(match) return this.childrens[i].execute(resolvable, content, args);
+	// if zero arguments was given or statics commands/childrens was not detected
+	// check if there is a timeout
+	if(this.timeout > 0) {
+
+		// get the cache by depend if we have to set it by guilds or by default
+		// (the cache is the same instance in both choices)
+		const cache = this.universalTimeout ? this.cache : this.cache.guilds.get(__arguments.channel.guildId);
+
+		// check the lastExecution time
+		const lastExecution = cache.get('lastExecution');
+
+		// if the last execution dosen't exist mean that the command never been executed
+		// so don't need to check the timeout
+		// else for cheking the timeout we taking the current timestamp that will always be upper or the same
+		// than the last timestamp so no negative number
+		if(!lastExecution || (Date.now() - lastExecution) > this.timeout) {
+			// set the cache and pass to the next part of the function (execute the command)
+			cache.set('lastExecution', Date.now());
+		}
+		// else execute the command when a command get a timed out
+		else {
+			// if the function exist execute it
+			if(this.onTimeout) this.onTimeout(__arguments);
+
+			return;
+		}
+
 	}
 
-	// if any child arguments is
-	// valid just execute the command
-	return this.executable(__arguments);
+	// execute the command
+	this.executable(__arguments);
 }
 
 /**
@@ -228,38 +302,6 @@ command.prototype.match = function match(entry, options) {
 	}
 
 	internalError("entry must be an instance of string or an array");
-
-	// function compareWith(string) {
-	// 	for(let i = 0; i < this.entries.length; i++) {
-	// 		if(string === this.entries[i]) return true;
-	// 	}
-
-	// 	return false;
-	// }
-
-	// function compareArray(array) {
-	// 	let trueComparisons = 0;
-
-	// 	for(let i = 0; i < array.length; i++) {
-	// 		if(compareWith(array[i])) {
-	// 			if(!strict) return true;
-	// 			trueComparisons += 1;
-	// 		}
-	// 	}
-
-	// 	return trueComparisons === array.length;
-	// }
-
-	// if(typeof entry === "string")
-	// 	return compareWith(entry)
-
-	// if(entry instanceof command)
-	// 	return compareArray(entry.entries);
-
-	// if(entry instanceof Array)
-	// 	return compareArray(entry);
-
-	// return false;
 }
 
 /**
