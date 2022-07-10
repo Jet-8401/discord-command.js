@@ -7,16 +7,17 @@ const fs = require("fs");
 const Discord = require("discord.js");
 const {
     configuration,
-    cache,
+    defaultCache,
     parse,
     internalError,
     internalConsole,
     internalWarn,
-    isCommandObj
+    isCommandObj,
+    guildsCache
 } = require("../requirements/utils.m.js");
 
 /**
- * Tell if all commands is loaded.
+ * Tell if all commands are loaded.
  */
 let commandLOADED = false;
 
@@ -27,7 +28,8 @@ handler['staticCommands'] = require("./staticCommands.m.js");
 handler['configuration'] = configuration;
 handler['autorised'] = require("../requirements/autorised.m.js");
 handler['parse'] = parse;
-handler['cache'] = cache;
+handler['cache'] = new defaultCache();
+handler['guildsCache'] = new guildsCache();
 
 // Extra handler for voice connections
 handler['voice'] = require("./voice-handler.m.js");
@@ -91,31 +93,24 @@ handler['register'] = function commandRegister(resolvable, options) {
  * Resolve a Discord.Message or a Discord.Interaction.
  * 
  * @param {Discord.Message|Discord.Interaction} resolvable an instance of a `Discord.Message` | `Discord.Interaction`
- * @param {object} options
- * @param {?Discord.Client} options.client
  */
-handler['resolve'] = function resolve(resolvable, options) {
+handler['resolve'] = function resolve(resolvable) {
     // check the type of the resolvable
     if(resolvable instanceof Discord.Message) {
-        return this.executeMessage(resolvable, options);
+        return this.executeMessage(resolvable);
     }
 
     // if its an interaction resolve it into the handler
     if(resolvable instanceof Discord.Interaction)
-        return this.executeInteraction(resolvable, options);
+        return this.executeInteraction(resolvable);
 }
 
 /**
  * Execute a specified command by the base of an interaction.
  * 
  * @param {Discord.Interaction} interaction
- * @param {object} options
- * @param {?Discord.Client} options.client
  */
-handler['executeInteraction'] = function executeInteraction(interaction, options) {
-    // set the bot into the cache
-    if(options) if(options.client) this.cache.set('clientBot', options.client);
-
+handler['executeInteraction'] = function executeInteraction(interaction) {
     // check if devMod is enable
     if(!this.autorised.check(interaction.member)) return;
 
@@ -139,7 +134,7 @@ handler['executeInteraction'] = function executeInteraction(interaction, options
     }
 
     const command = this.hasCommand(key);
-    if(command) command.execute(interaction, this.cache.get('clientBot'));
+    if(command) command.execute(interaction);
 
     return this;
 }
@@ -148,14 +143,8 @@ handler['executeInteraction'] = function executeInteraction(interaction, options
  * Execute the specified command by the base of a message.
  * 
  * @param {Discord.Message} message an instance of a `Discord.Message`
- * @param {object} options
- * @param {?string} options.commandName
- * @param {?Discord.Client} options.client
  */
-handler['executeMessage'] = function executeMessage(message, options) {
-    // set the bot into the cache
-    if(options) if(options.client) this.cache.set('clientBot', options.client);
-
+handler['executeMessage'] = function executeMessage(message) {
     // check if devMod is enable
     if(!this.autorised.check(message.member)) return;
 
@@ -177,7 +166,7 @@ handler['executeMessage'] = function executeMessage(message, options) {
     // check if the command requested exist
     const command = this.hasCommand(cmd_name, {filter: (value) => !value.interactionsOnly});
     if(command) {
-        return command.execute(message, this.cache.get('clientBot'));
+        return command.execute(message);
     }
 
     return this;
@@ -271,21 +260,26 @@ handler['hasCommand'] = function hasCommand(command, options = {strict: false, s
  * @param {string|handler.command} command 
  */
 handler['unload'] = function unloadCommand(command) {
-    function _unload_(i) {
+    function _unload_(i, n) {
         internalConsole(`${command} is unload!`);
-        this.commands.splice(i, 1);
+        this.commands.splice(i, n);
         return true;
+    }
+
+    if(command === '*') {
+        commandLOADED = false;
+        return _unload_.apply(this, [0, this.commands.length]);
     }
 
     for(let i = 0; i <  this.commands.length; i++) {
         for(const entry of this.commands[i]['entries']) {
 
             if(typeof entry === "string") {
-                if(entry === command || command === '*') return _unload_.apply(this, [i]);
+                if(entry === command) return _unload_.apply(this, [i, 1]);
             }
 
             if(entry instanceof this.command) {
-                if(entry.match(command.entries)) return _unload_.apply(this, [i]);
+                if(entry.match(command.entries)) return _unload_.apply(this, [i, 1]);
             }
 
         }
