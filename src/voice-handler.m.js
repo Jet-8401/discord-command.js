@@ -76,12 +76,11 @@ Queue.prototype.play = function playSong(ressource, voiceChannel) {
  * @param {Discord.VoiceChannel} voiceChannel 
  * @returns {Queue}
  */
-Queue.prototype.createVoiceConnection = function createVoiceConnection(voiceChannel, selfDeaf=true) {
+Queue.prototype.createVoiceConnection = function createVoiceConnection(voiceChannel) {
     this.connection = Voice.joinVoiceChannel({
         channelId: voiceChannel.id,
         guildId: voiceChannel.guildId,
-        adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-        selfDeaf: selfDeaf,
+        adapterCreator: voiceChannel.guild.voiceAdapterCreator
     });
 
     return this;

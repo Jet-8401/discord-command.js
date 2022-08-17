@@ -1,5 +1,0 @@
-# Only for devs
-
-- can't add the bot by functions (only by cache)
-+ timeout feature
-+ minor refactorisation
