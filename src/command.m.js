@@ -68,7 +68,7 @@ function command(entries, executable, options) {
 	/**
 	 * @type {string|undefined}
 	 */
-	this.description = !options ? null : options.description;
+	this.description = !options ? undefined : options.description;
 
 	/**
 	 * @type {Array<string>}
@@ -86,7 +86,7 @@ function command(entries, executable, options) {
 	 * The type of interactions that can execute this command.
 	 */
 	this.interactionsTypes = !options ? [] : 
-		Array.isArray(options.interactionsTypes) ? options.interactionsTypes : [options.interactionsTypes];
+		Array.isArray(options.interactionsTypes) ? options.interactionsTypes : [];
 
 	/**
 	 * If the command can be executed only by interactions.

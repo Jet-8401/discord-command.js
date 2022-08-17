@@ -9,8 +9,6 @@ const Discord = require("discord.js");
 const __package = require("../package.json")
 const full_package_name = __package.name + "@" + __package.version;
 
-const InteractionType = "ApplicationComand" || "AutoComplete" || "Button" || "Command" || "ContextMenu" || "MessageComponent" || "SelectMenu";
-
 const configuration = {};
 const JsonConfig = require("../src/configuration.json");
 
@@ -220,7 +218,6 @@ function parse(message) {
 }
 
 module["exports"] = {
-    InteractionType,
     configuration,
     defaultCache,
     guildsCache,
