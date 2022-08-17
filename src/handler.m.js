@@ -5,6 +5,9 @@
  */
 const fs = require("fs");
 const Discord = require("discord.js");
+const { REST } = require("@discordjs/rest");
+const { Routes } = require('discord-api-types/v9');
+const colors = require("colors");
 const {
     configuration,
     defaultCache,
@@ -16,9 +19,7 @@ const {
     guildsCache
 } = require("../requirements/utils.m.js");
 
-/**
- * Tell if all commands are loaded.
- */
+// Tell if all commands are loaded.
 let commandLOADED = false;
 
 const handler = {};
@@ -46,12 +47,20 @@ Object.defineProperty(handler.commands, "loaded", {get: function() {
     return commandLOADED;
 }});
 
+
+
+/* variable declarations for jsdoc */
+
 /**
  * @param {string} name name of the file or the directory
  * @param {string} path path of the current element
  * @param {boolean} isDirectory 
  */
 function filterRegister(name, path, isDirectory) {};
+
+
+
+/* Handler functions declarations */
 
 /**
  * Register a command to the handler.
@@ -286,6 +295,68 @@ handler['unload'] = function unloadCommand(command) {
     }
 
     return false;
+}
+
+/**
+ * Register the slash/applcations commands globally or by guilds (if specified).
+ * 
+ * @param {Array<handler.command>} commands 
+ * @param {?Array<string>} guilds 
+ */
+ handler.registerCommandsApplication = function registerCommandsApplication(commands, guilds) {
+    const applicationCommands = [];
+    
+    for(const command of commands) {
+		// if the command can be triggered by an interaction
+		if(command.interactionsTypes.includes('APPLICATION_COMMAND')) {
+            applicationCommands.push({
+                "name": command.entries[0],
+                "description": command.description === undefined ? '-- Do not have description --' : command.description
+            });
+		}
+	}
+
+    const userID = handler.cache.get('client').user.id;
+
+    if(guilds) {
+        for(const guild of guilds) {
+            registerRest.apply(this, [
+                applicationCommands,
+                userID,
+                guild
+            ]);
+        }
+
+        return;
+    }
+
+    registerRest.apply(this, [
+        applicationCommands,
+        userID
+    ]);
+}
+
+
+
+/* Global functions declaration */
+
+async function registerRest(body, userID, guildID) {
+    /**
+     * @type {Discord.Client}
+     */
+    const client = this.cache.get('client');
+    const rest = new REST({version: '9'}).setToken(this.cache.get('token'));
+    const route = guildID ? 
+        Routes.applicationGuildCommands(userID, guildID) : 
+        Routes.applicationCommands(userID);
+    
+    await rest.put(route, { body }).catch((err) => {internalError(err, "aborted")});
+    const next = guildID ? `on ${client.guilds.cache.get(guildID)}` : 'globally';
+    return internalConsole(
+        colors.green(
+            `Sucsessfully register ${body.length} (/) command${body.length>1?'s':''} ${next}`
+        )
+    );
 }
 
 function isDirectory(path) {
