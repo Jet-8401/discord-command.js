@@ -10,6 +10,8 @@ const { internalError, parse, isCommandObj, configuration } = require("../requir
 /**
  * Model of commandFunction.
  * 
+ * @name commandFunction
+ * 
  * @param {Object} param
  * @param {Discord.TextBasedChannels} param.channel the channel where the command has been invoked
  * @param {Discord.Message} param.message the message that triggered the command

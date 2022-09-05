@@ -82,13 +82,14 @@ For creating a command you must have 3 keys
 <br/>
 
 ---
-#### `executable : `<span class="type">function({ channel, message, interaction, resolvable, content, args, bot, command })</span>
+#### `executable : `<span class="type">function({ channel, message, content, interaction, resolvable, content, args, bot, command })</span>
 <br/>
 
 | Parameter | Type | Description |
 |---|:---:|---|
 | channel | `Disord.TextBasedChannels` | The channel where the command has been invoked |
 | message | `Discord.Message` | The message that triggered the command |
+| content | `string` | the content of the message (without the command) | 
 | interaction | `Discord.Interaction` | The interaction that triggered the command |
 | resolvable | `Discord.Message` or `Discord.Interaction` | Interaction or a Message depends on wich has triggered the command |
 | content | `string` | The content of the message without the command |
@@ -102,7 +103,7 @@ For creating a command you must have 3 keys
 ###
 ---
 
-#### `options : ` <span class="type">{ description, categories, childrens, interactionsTypes, interactionsOnly }</span>
+#### `options : ` <span class="type">{ description, categories, childrens, interactionsTypes, interactionsOnly, timeout, onTimeout, }</span>
 <br/>
 
 | Parameter | Type | Description |
@@ -112,6 +113,9 @@ For creating a command you must have 3 keys
 | childrens | `command[]` | The childrens/subcommands of the command |
 | interactionsTypes | `string[]` | The types of interaction that could triggered this command |
 | interactionOnly | `boolean` | If the the command can be triggered only with interactions |
+| timeout | `number` | the waiting time (in ms) before executing an other time this command |
+| onTimeout | `command.executable` | the function that gonna be executed if the command been time out |
+| universalTimeout | `boolean` | if the timeout applied through any discord guilds/servers |
 <br/>
 
 ### Examples of the same command
@@ -154,9 +158,9 @@ module.exports = ping;
 
 First of all you need to specify the client on wich your bot run on by doing
 ```javascript
-handler.cache.set('clientBot', /* Your client here */);
+handler.cache.set('client', /* Your client here */);
 ```
-If you don't do that when you gonna try to get the `bot` parameter into a command that will return you an `undefined` value.
+You need to specify that in case you want to get your client in an executable of a command or if you want to register slash commands.
 
 <br/>
 
@@ -169,6 +173,14 @@ In that <span class="interFile">[folder](./src/configuration.json)</span> you wi
 handler.configuration.set("prefix", "!");
 ```
 You must enter the key and the value that you want to applied to it `(the value must be the same type as the one before)`.
+
+<br/>
+
+#### <span class="litle-title">Set a default timeout</span>
+
+```javascript
+handler.cache.set("default_ontimeout", onTimeout);
+```
 
 <br/>
 <br/>
@@ -301,7 +313,7 @@ _Methods and properties of a `queu`_
 |---|:---:|---|
 | add | `item: any, force: boolean` | Add something to the queu. `force` param is to enabled if you want to 'break' the maximum size of the queu, that means that if the length of the curernt queu is too long to add something eles the first element on the queu gonna be deleted and the item gonna be pushed into the end. By default the maximum size is set to 100 and can be change into `handler.voice.maxSize` |
 | play | `ressource: Voice.AudioRessource, voiceChannel: Discord.VoiceChannel/null` | Make the bot play a ressource into a voice channel |
-| createVoiceConnection | `voiceChannel: Discord.VoiceChannel` | Create a voice connection to a voice channel |
+| createVoiceConnection | `voiceChannel: Discord.VoiceChannel, options: {selfMute, selfDeaf, group, debug}` | Create a voice connection to a voice channel |
 | hasVoiceConnection | | Check if the queu have a voice connection |
 | regenerateAudioPlayer | `options: Voice.CreateAudioPlayerOptions/undefined` | Regenerate the audioPlayer of the queu |
 | next | | Return the incoming item into the queu |
@@ -309,7 +321,7 @@ _Methods and properties of a `queu`_
 
 <br/>
 
-### <a id="advanced-chapter2" class="title">2. White/Black lists</a>
+### <a id="advanced-chapter3" class="title">3. White/Black lists</a>
 ---
 
 The `handler` have a white and black list, the white list is here to take the lead on the black.
@@ -328,7 +340,31 @@ That will allowed the people that are in `devs` but not everybody else.
 
 <br/>
 
-### <a id="advanced-chapter3" class="title">3. Handler properties and methods.</a>
+### <a id="advanced-chapter4" class="title">4. Registering slash commands</a>
+---
+
+*For now this feature is really small and basic but it will be updated into the v4.0.0.*
+
+<br/>
+
+So for registering some slash command you will need to use `handler.registerCommandsApplication(`<span class="type">commands</span>`,` <span class="type">guilds</span>`)` after login the bot. You can see here that you can specify the <span class="type">guilds</span> where the commands gonna be registered. *(For thoses who wonders, the slash commands gonna be registered only if the command can be triggered by interaction)*
+
+```javascript
+Bot.login(/* your token */).then(() => { 
+	handler.registerCommandsApplication(handler.commands)
+});
+```
+<br/>
+
+*Function declaration*
+| Arguments | Types | Descritpion |
+|---|:---:|---|
+| commands | `Array<command>` | `None` |
+| guilds | `Array<sttring>` | The ids of the guilds |
+
+<br/>
+
+### <a id="advanced-chapter5" class="title">5. Handler properties and methods.</a>
 ---
 
 <br/>
