@@ -345,7 +345,7 @@ async function registerRest(body, userID, guildID) {
      * @type {Discord.Client}
      */
     const client = this.cache.get('client');
-    const rest = new REST({version: '9'}).setToken(this.cache.get('token'));
+    const rest = new REST({version: '9'}).setToken(client.token);
     const route = guildID ? 
         Routes.applicationGuildCommands(userID, guildID) : 
         Routes.applicationCommands(userID);
