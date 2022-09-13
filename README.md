@@ -386,7 +386,7 @@ Bot.login(/* your token */).then(() => {
 | register | resolvable: `string / command`, options: `{ auto_categorise: boolean, recursive: boolean, filter: (name: string, path: string, isDirectory: boolean) => {} } / undefined` | Register a command to the handler |
 | executeInteraction | interaction: `Discord.Interaction`, options: `{ client: Discord.Client } / undefined` | Execute a specified command by the base of an interaction |
 | executeMessage | message: `Discord.Message`, options: `{ commandName: string, client: Discord.Client } / undefined` | Execute the specified command by the base of a message |
-| hasCommand | command: `string / Array<string> / Array<Array<string>>`, options: `{ strict: boolean, strictEntries: boolean, filter: (value, index: number, array: Array<any>) => {} } / undefined` | Check if the command has specific command |
+| hasCommand | command: `string / Array<string> / Array<Array<string>>`, options: `{ strict: boolean, strictEntries: boolean, filter: (value, index: number, array: Array<any>) => {} } / undefined` | Check if the handler has specific command |
 | unload | command: `string / command` | Unlaod a command that was previously register. Can use `*` to unload all the commands. |
 | resolve | resolvable: `Discord.Message / Discord.Interaction`, options: `{ client: Discord.Client } / undefined` | Resolve a Discord.Message or a Discord.Interaction |
 | parse | message: `Discord.Message` | Parse a message or an instance of and split it into three (command, content, arguments) |

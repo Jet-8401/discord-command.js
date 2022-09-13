@@ -53,9 +53,7 @@ Queue.prototype.add = function addContent(item, force) {
  * @param {?Discord.VoiceChannel} voiceChannel
  */
 Queue.prototype.play = function playSong(ressource, voiceChannel) {
-    this.currentlyPlaying = true;
-
-    // create a voice connection if any has been created
+    // create a voice connection if none has been created
     if(!(this.connection instanceof Voice.VoiceConnection)) {
         if(voiceChannel) this.createVoiceConnection(voiceChannel);
         return internalError("Impossible to create a voice connection!");
@@ -66,6 +64,7 @@ Queue.prototype.play = function playSong(ressource, voiceChannel) {
 
     // play the audio
     this.audioPlayer.play(ressource);
+    this.currentlyPlaying = true;
 
     return this;
 }
@@ -129,6 +128,11 @@ Queue.prototype.next = function nextContent() {
 Queue.prototype.getContent = function getContentFromQueue(index) {
     if(this.content[index]) return this.content.splice(index, 1)[0];
     return false;
+}
+
+Queue.prototype.destroyConnection = function destroyConnection() {
+    this.connection.destroy();
+    this.connection = false;
 }
 
 function setEvents() {

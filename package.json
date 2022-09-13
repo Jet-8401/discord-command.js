@@ -16,7 +16,7 @@
 	},
 	"dependencies": {
 		"@discordjs/rest": "^1.0.1",
-		"@discordjs/voice": "^0.7.5",
+		"@discordjs/voice": "^0.11.0",
 		"colors": "^1.4.0",
 		"discord-api-types": "^0.37.2",
 		"discord.js": "^13.3.1"
